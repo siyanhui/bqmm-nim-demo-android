@@ -53,6 +53,7 @@ import com.netease.nimlib.sdk.team.model.IMMessageFilter;
 import com.netease.nimlib.sdk.team.model.UpdateTeamAttachment;
 import com.netease.nimlib.sdk.uinfo.UserInfoProvider;
 import com.netease.nimlib.sdk.uinfo.model.NimUserInfo;
+import com.tencent.bugly.crashreport.CrashReport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,6 +96,7 @@ public class NimApplication extends Application {
             // 注册语言变化监听
             registerLocaleReceiver(true);
         }
+        CrashReport.initCrashReport(getApplicationContext());
     }
 
     private LoginInfo getLoginInfo() {

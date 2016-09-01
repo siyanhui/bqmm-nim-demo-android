@@ -372,6 +372,19 @@
             android:name="com.netease.cosine.target.receiver"
             android:value="com.netease.nimlib.service.NimReceiver" />
 
+
+        <meta-data
+            android:name="BUGLY_APPID"
+            android:value="14fffdd43d" />
+        <meta-data
+            android:name="BUGLY_APP_VERSION"
+            android:value="1.7.4" />
+        <meta-data
+            android:name="BUGLY_APP_CHANNEL"
+            android:value="alpha" />
+        <meta-data
+            android:name="BUGLY_ENABLE_DEBUG"
+            android:value="true" />
     </application>
 
 </manifest>
