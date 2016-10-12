@@ -1,6 +1,5 @@
 package com.netease.nim.uikit.recent.viewholder;
 
-import android.text.style.ImageSpan;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.FrameLayout;
@@ -15,7 +14,6 @@ import com.netease.nim.uikit.common.util.sys.ScreenUtil;
 import com.netease.nim.uikit.common.util.sys.TimeUtil;
 import com.netease.nim.uikit.recent.RecentContactsCallback;
 import com.netease.nim.uikit.recent.RecentContactsFragment;
-import com.netease.nim.uikit.session.emoji.MoonUtil;
 import com.netease.nim.uikit.uinfo.UserInfoHelper;
 import com.netease.nimlib.sdk.msg.constant.MsgStatusEnum;
 import com.netease.nimlib.sdk.msg.constant.SessionTypeEnum;
@@ -96,8 +94,8 @@ public abstract class RecentViewHolder extends TViewHolder implements OnClickLis
 
     private void updateMsgLabel() {
         // 显示消息具体内容
-        MoonUtil.identifyFaceExpressionAndTags(context, tvMessage, getContent(), ImageSpan.ALIGN_BOTTOM, 0.45f);
-        //tvMessage.setText(getContent());
+       // MoonUtil.identifyFaceExpressionAndTags(context, tvMessage, getContent(), ImageSpan.ALIGN_BOTTOM, 0.45f);
+        tvMessage.setText(getContent());
 
         MsgStatusEnum status = recent.getMsgStatus();
         switch (status) {

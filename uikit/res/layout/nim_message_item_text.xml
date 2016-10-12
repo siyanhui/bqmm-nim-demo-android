@@ -4,7 +4,7 @@
               android:layout_width="wrap_content"
               android:layout_height="wrap_content"
               android:layout_gravity="center_vertical">
-    <TextView
+    <com.melink.bqmmsdk.widget.BQMMMessageText
         android:id="@+id/nim_message_item_text_body"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
