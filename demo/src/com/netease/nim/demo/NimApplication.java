@@ -99,6 +99,16 @@ public class NimApplication extends Application {
             // 注册语言变化监听
             registerLocaleReceiver(true);
         }
+        /**
+         * BQMM集成
+         * 首先从AndroidManifest.xml中取得appId和appSecret，然后对BQMM SDK进行初始化
+         */
+        try {
+            Bundle bundle = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA).metaData;
+            BQMM.getInstance().initConfig(this, bundle.getString("bqmm_app_id"), bundle.getString("bqmm_app_secret"));
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
         CrashReport.initCrashReport(getApplicationContext());
 
         /**

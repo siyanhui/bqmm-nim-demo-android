@@ -1,15 +1,20 @@
 package com.netease.nim.demo.chatroom.viewholder;
 
 import android.graphics.Color;
+import android.text.TextUtils;
 import android.text.method.LinkMovementMethod;
-import android.text.style.ImageSpan;
-import android.widget.TextView;
 
-import com.netease.nim.uikit.NimUIKit;
+import com.melink.baseframe.utils.DensityUtils;
+import com.melink.bqmmsdk.widget.BQMMMessageText;
 import com.netease.nim.uikit.common.util.sys.ScreenUtil;
-import com.netease.nim.uikit.session.emoji.MoonUtil;
+import com.netease.nim.uikit.session.module.input.InputPanel;
 import com.netease.nim.uikit.session.viewholder.MsgViewHolderText;
 import com.netease.nimlib.sdk.chatroom.model.ChatRoomMessage;
+
+import org.json.JSONArray;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Created by hzxuwen on 2016/1/18.
@@ -33,16 +38,31 @@ public class ChatRoomViewHolderText extends MsgViewHolderText {
 
     @Override
     protected void bindContentView() {
-        TextView bodyTextView = findViewById(com.netease.nim.uikit.R.id.nim_message_item_text_body);
+        BQMMMessageText bodyTextView = findViewById(com.netease.nim.uikit.R.id.nim_message_item_text_body);
         bodyTextView.setTextColor(Color.BLACK);
         layoutDirection();
-        MoonUtil.identifyFaceExpression(NimUIKit.getContext(), bodyTextView, getDisplayText(), ImageSpan.ALIGN_BOTTOM);
+//        MoonUtil.identifyFaceExpression(NimUIKit.getContext(), bodyTextView, getDisplayText(), ImageSpan.ALIGN_BOTTOM);
         bodyTextView.setMovementMethod(LinkMovementMethod.getInstance());
         bodyTextView.setOnLongClickListener(longClickListener);
+        String msgType = "";
+        JSONArray jsonArray = null;
+        if (message.getRemoteExtension() != null && message.getRemoteExtension().containsKey(InputPanel.TXT_MSGTYPE) && message.getRemoteExtension().containsKey(InputPanel.MSG_DATA)) {
+            HashMap<String, Object> hashMap = (HashMap<String, Object>) message.getRemoteExtension();
+            msgType = (String) hashMap.get(InputPanel.TXT_MSGTYPE);
+            ArrayList<String> arrayList = (ArrayList<String>) hashMap.get(InputPanel.MSG_DATA);
+            jsonArray = new JSONArray(arrayList);
+            if (TextUtils.equals(msgType, InputPanel.FACETYPE)) {
+                bodyTextView.setStickerSize(DensityUtils.dip2px(100));
+                bodyTextView.setBackgroundResource(0);
+            } else {
+                bodyTextView.setEmojiSize(DensityUtils.dip2px(20));
+            }
+        }
+        bodyTextView.showMessage(getDisplayText(), msgType, jsonArray);
     }
 
     private void layoutDirection() {
-        TextView bodyTextView = findViewById(com.netease.nim.uikit.R.id.nim_message_item_text_body);
+        BQMMMessageText bodyTextView = findViewById(com.netease.nim.uikit.R.id.nim_message_item_text_body);
         bodyTextView.setPadding(ScreenUtil.dip2px(6), 0, 0, 0);
     }
 }

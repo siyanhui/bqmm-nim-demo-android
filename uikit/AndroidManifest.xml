@@ -137,5 +137,30 @@
             android:name="com.netease.nim.uikit.common.util.test.MassMessageActivity"
             android:configChanges="keyboardHidden"
             android:theme="@style/AppTheme.NoActionBar"/>
+
+        <activity
+            android:name="com.melink.bqmmsdk.ui.store.EmojiPackageList"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name="com.melink.bqmmsdk.ui.store.EmojiDetail"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name="com.melink.bqmmsdk.ui.store.EmojiPackageDetail"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name="com.melink.bqmmsdk.ui.store.EmojiPackageSetting"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name="com.melink.bqmmsdk.ui.store.EmojiPackageSort"
+            android:screenOrientation="portrait" >
+        </activity>
+        <activity
+            android:name="com.melink.bqmmsdk.ui.store.ServiceDeclaration"
+            android:screenOrientation="portrait" >
+        </activity>
     </application>
 </manifest>

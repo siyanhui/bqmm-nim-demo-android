@@ -139,8 +139,12 @@ public class ChatRoomMessageFragment extends TFragment implements ModuleProxy {
     @Override
     public boolean sendMessage(IMMessage msg) {
         ChatRoomMessage message = (ChatRoomMessage) msg;
-
-        Map<String, Object> ext = new HashMap<>();
+        Map<String, Object> ext;
+        if (message.getRemoteExtension() != null) {
+            ext = message.getRemoteExtension();
+        }else {
+            ext = new HashMap<>();
+        }
         ChatRoomMember chatRoomMember = ChatRoomMemberCache.getInstance().getChatRoomMember(roomId, DemoCache.getAccount());
         if (chatRoomMember != null && chatRoomMember.getMemberType() != null) {
             ext.put("type", chatRoomMember.getMemberType().getValue());
