@@ -45,7 +45,7 @@
             android:id="@+id/editTextMessage"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:autoLink="all"
+            android:autoLink="web|email|phone"
             android:background="@drawable/message_input_edittext_box"
             android:maxHeight="72dip"
             android:maxLength="5000"

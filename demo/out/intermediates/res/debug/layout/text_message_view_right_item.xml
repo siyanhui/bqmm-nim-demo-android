@@ -35,7 +35,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
-                android:autoLink="phone|email|map"
+                android:autoLink="phone|email"
                 android:background="@drawable/bg_message_right_text_selector"
                 android:gravity="center_vertical|left"
                 android:includeFontPadding="false"

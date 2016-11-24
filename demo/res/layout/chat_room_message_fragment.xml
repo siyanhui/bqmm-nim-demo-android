@@ -14,10 +14,10 @@
 
         <include layout="@layout/nim_message_activity_text_layout"/>
 
-        <com.melink.bqmmsdk.ui.keyboard.BQMMKeyboard
+        <com.netease.nim.uikit.session.emoji.EmoticonPickerView
             android:id="@+id/emoticon_picker_view"
             android:layout_width="wrap_content"
-            android:layout_height="250dp"
+            android:layout_height="wrap_content"
             android:visibility="gone"/>
     </LinearLayout>
 

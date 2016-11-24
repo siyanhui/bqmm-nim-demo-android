@@ -5,17 +5,15 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.os.Bundle;
 import android.os.Environment;
+import android.support.multidex.MultiDex;
 import android.text.TextUtils;
 import android.util.Log;
 
-import com.melink.bqmmsdk.sdk.BQMM;
 import com.netease.nim.demo.avchat.AVChatProfile;
 import com.netease.nim.demo.avchat.activity.AVChatActivity;
 import com.netease.nim.demo.common.util.crash.AppCrashHandler;
@@ -53,6 +51,7 @@ import com.netease.nimlib.sdk.rts.RTSManager;
 import com.netease.nimlib.sdk.rts.model.RTSData;
 import com.netease.nimlib.sdk.team.constant.TeamFieldEnum;
 import com.netease.nimlib.sdk.team.model.IMMessageFilter;
+import com.netease.nimlib.sdk.team.model.Team;
 import com.netease.nimlib.sdk.team.model.UpdateTeamAttachment;
 import com.netease.nimlib.sdk.uinfo.UserInfoProvider;
 import com.netease.nimlib.sdk.uinfo.model.NimUserInfo;
@@ -64,6 +63,10 @@ import java.util.Map;
 
 public class NimApplication extends Application {
 
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(newBase);
+        MultiDex.install(this);
+    }
     public void onCreate() {
         super.onCreate();
 
@@ -98,16 +101,6 @@ public class NimApplication extends Application {
 
             // 注册语言变化监听
             registerLocaleReceiver(true);
-        }
-        /**
-         * BQMM集成
-         * 首先从AndroidManifest.xml中取得appId和appSecret，然后对BQMM SDK进行初始化
-         */
-        try {
-            Bundle bundle = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA).metaData;
-            BQMM.getInstance().initConfig(this, bundle.getString("bqmm_app_id"), bundle.getString("bqmm_app_secret"));
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
         }
         CrashReport.initCrashReport(getApplicationContext());
     }
@@ -314,6 +307,19 @@ public class NimApplication extends Application {
 
         @Override
         public Bitmap getTeamIcon(String teamId) {
+            /**
+             * 注意：这里最好从缓存里拿，如果读取本地头像可能导致UI进程阻塞，导致通知栏提醒延时弹出。
+             */
+            // 从内存缓存中查找群头像
+            Team team = TeamDataCache.getInstance().getTeamById(teamId);
+            if (team != null) {
+                Bitmap bm = ImageLoaderKit.getNotificationBitmapFromCache(team.getIcon());
+                if (bm != null) {
+                    return bm;
+                }
+            }
+
+            // 默认图
             Drawable drawable = getResources().getDrawable(R.drawable.nim_avatar_group);
             if (drawable instanceof BitmapDrawable) {
                 return ((BitmapDrawable) drawable).getBitmap();
@@ -328,7 +334,7 @@ public class NimApplication extends Application {
              * 注意：这里最好从缓存里拿，如果读取本地头像可能导致UI进程阻塞，导致通知栏提醒延时弹出。
              */
             UserInfo user = getUserInfo(account);
-            return (user != null) ? ImageLoaderKit.getNotificationBitmapFromCache(user) : null;
+            return (user != null) ? ImageLoaderKit.getNotificationBitmapFromCache(user.getAvatar()) : null;
         }
 
         @Override
