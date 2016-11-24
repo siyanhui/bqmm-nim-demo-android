@@ -12,6 +12,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.melink.bqmmsdk.sdk.BQMMMessageHelper;
 import com.netease.nim.uikit.NimUIKit;
 import com.netease.nim.uikit.R;
 import com.netease.nim.uikit.UserPreferences;
@@ -33,6 +34,7 @@ import com.netease.nim.uikit.session.audio.MessageAudioControl;
 import com.netease.nim.uikit.session.helper.MessageHelper;
 import com.netease.nim.uikit.session.helper.MessageListPanelHelper;
 import com.netease.nim.uikit.session.module.Container;
+import com.netease.nim.uikit.session.module.input.InputPanel;
 import com.netease.nim.uikit.session.viewholder.MsgViewHolderBase;
 import com.netease.nim.uikit.session.viewholder.MsgViewHolderFactory;
 import com.netease.nim.uikit.uinfo.UserInfoHelper;
@@ -57,11 +59,14 @@ import com.netease.nimlib.sdk.msg.model.AttachmentProgress;
 import com.netease.nimlib.sdk.msg.model.IMMessage;
 import com.netease.nimlib.sdk.msg.model.QueryDirectionEnum;
 
+import org.json.JSONArray;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -828,7 +833,20 @@ public class MessageListPanel implements TAdapterDelegate {
         }
 
         private void onCopyMessageItem(IMMessage item) {
-            ClipboardUtil.clipboardCopyText(container.activity, item.getContent());
+            String msgType = "";
+            JSONArray jsonArray = null;
+            if (item.getRemoteExtension() != null && item.getRemoteExtension().containsKey(InputPanel.TXT_MSGTYPE) && item.getRemoteExtension().containsKey(InputPanel.MSG_DATA)) {
+                HashMap<String, Object> hashMap = (HashMap<String, Object>) item.getRemoteExtension();
+                msgType = (String) hashMap.get(InputPanel.TXT_MSGTYPE);
+                ArrayList<String> arrayList = (ArrayList<String>) hashMap.get(InputPanel.MSG_DATA);
+                jsonArray = new JSONArray(arrayList);
+
+            }
+            if (TextUtils.equals(msgType, InputPanel.EMOJITYPE)) {
+                ClipboardUtil.clipboardCopyText(container.activity, BQMMMessageHelper.getMsgCodeString(jsonArray));
+            } else {
+                ClipboardUtil.clipboardCopyText(container.activity, item.getContent());
+            }
         }
 
         // 长按菜单项--删除

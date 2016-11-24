@@ -25,6 +25,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.alibaba.fastjson.JSONObject;
+import com.melink.bqmmsdk.bean.Emoji;
+import com.melink.bqmmsdk.sdk.BQMM;
+import com.melink.bqmmsdk.sdk.BQMMMessageHelper;
+import com.melink.bqmmsdk.sdk.IBqmmSendMessageListener;
+import com.melink.bqmmsdk.ui.keyboard.BQMMKeyboard;
+import com.melink.bqmmsdk.widget.BQMMEditView;
+import com.melink.bqmmsdk.widget.BQMMSendButton;
 import com.netease.nim.uikit.NimUIKit;
 import com.netease.nim.uikit.R;
 import com.netease.nim.uikit.common.ui.dialog.EasyAlertDialogHelper;
@@ -48,14 +55,37 @@ import com.netease.nimlib.sdk.msg.model.CustomNotification;
 import com.netease.nimlib.sdk.msg.model.CustomNotificationConfig;
 import com.netease.nimlib.sdk.msg.model.IMMessage;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 底部文本编辑，语音等模块
  * Created by hzxuwen on 2015/6/16.
  */
 public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallback {
+    /**
+     * 两种表情消息类型，前者为图文混排表情，后者为大表情
+     */
+    public static final String EMOJITYPE = "emojitype";
+    public static final String FACETYPE = "facetype";
+
+    /**
+     * 用于在消息的附加信息里表示表情文字
+     */
+    public static final String EMOJI_TEXT="emoji_text";
+    /**
+     * 用于在消息的附加信息里表示类型
+     */
+    public static final String TXT_MSGTYPE="txt_msgType";
+    /**
+     * 用于在消息的附加信息里表示信息的实际内容
+     */
+    public static final String MSG_DATA="msg_data";
 
     private static final String TAG = "MsgSendLayout";
 
@@ -67,21 +97,21 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
 
     protected View actionPanelBottomLayout; // 更多布局
     protected LinearLayout messageActivityBottomLayout;
-    protected EditText messageEditText;// 文本消息编辑框
+    protected BQMMEditView messageEditText;// 文本消息编辑框
     protected Button audioRecordBtn; // 录音按钮
     protected View audioAnimLayout; // 录音动画布局
     protected FrameLayout textAudioSwitchLayout; // 切换文本，语音按钮布局
     protected View switchToTextButtonInInputBar;// 文本消息选择按钮
     protected View switchToAudioButtonInInputBar;// 语音消息选择按钮
     protected View moreFuntionButtonInInputBar;// 更多消息选择按钮
-    protected View sendMessageButtonInInputBar;// 发送消息按钮
+    protected BQMMSendButton sendMessageButtonInInputBar;// 发送消息按钮
     protected View emojiButtonInInputBar;// 发送消息按钮
     protected View messageInputBar;
 
     private SessionCustomization customization;
 
     // 表情
-    protected EmoticonPickerView emoticonPickerView;  // 贴图表情控件
+    protected BQMMKeyboard emoticonPickerView;  // 贴图表情控件
 
     // 语音
     protected AudioRecorder audioMessageHelper;
@@ -145,16 +175,8 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         }
     }
 
-    public void setCustomization(SessionCustomization customization) {
-        this.customization = customization;
-        if (customization != null) {
-            emoticonPickerView.setWithSticker(customization.withSticker);
-        }
-    }
-
     public void reload(Container container, SessionCustomization customization) {
         this.container = container;
-        setCustomization(customization);
     }
 
     private void initViews() {
@@ -165,8 +187,8 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         switchToAudioButtonInInputBar = view.findViewById(R.id.buttonAudioMessage);
         moreFuntionButtonInInputBar = view.findViewById(R.id.buttonMoreFuntionInText);
         emojiButtonInInputBar = view.findViewById(R.id.emoji_button);
-        sendMessageButtonInInputBar = view.findViewById(R.id.buttonSendMessage);
-        messageEditText = (EditText) view.findViewById(R.id.editTextMessage);
+        sendMessageButtonInInputBar = (BQMMSendButton) view.findViewById(R.id.buttonSendMessage);
+        messageEditText = (BQMMEditView) view.findViewById(R.id.editTextMessage);
 
         // 语音
         audioRecordBtn = (Button) view.findViewById(R.id.audioRecord);
@@ -176,7 +198,13 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         timerTipContainer = (LinearLayout) view.findViewById(R.id.timer_tip_container);
 
         // 表情
-        emoticonPickerView = (EmoticonPickerView) view.findViewById(R.id.emoticon_picker_view);
+        emoticonPickerView = (BQMMKeyboard) view.findViewById(R.id.emoticon_picker_view);
+        BQMM bqmm = BQMM.getInstance();
+        //初始化表情MM键盘，需要传入关联的EditView,SendBtn
+        bqmm.setEditView(messageEditText);
+        bqmm.setKeyboard(emoticonPickerView);
+        bqmm.setSendButton(sendMessageButtonInInputBar);
+        bqmm.load();
 
         // 显示录音按钮
         switchToTextButtonInInputBar.setVisibility(View.GONE);
@@ -189,13 +217,102 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         } else {
             textAudioSwitchLayout.setVisibility(View.GONE);
         }
+
+        /**
+         * BQMM集成
+         * 实现输入联想
+         */
+        messageEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                BQMM.getInstance().startShortcutPopupWindowByoffset(s.toString(), sendMessageButtonInInputBar, 0, sendMessageButtonInInputBar.getContext().getResources().getDimensionPixelOffset(R.dimen.bqmm_popup_view_offset));
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
+        /**
+         * BQMM集成
+         * 设置发送消息的回调
+         */
+        bqmm.setBqmmSendMsgListener(new IBqmmSendMessageListener() {
+            /**
+             * 单个大表情消息
+             */
+            @Override
+            public void onSendFace(final Emoji face) {
+                JSONArray msgCodes = BQMMMessageHelper.getFaceMessageData(face);
+                org.json.JSONObject jsonObject = new org.json.JSONObject();
+                try {
+                    jsonObject.put(TXT_MSGTYPE, FACETYPE);
+                    jsonObject.put(MSG_DATA, msgCodes);
+                    jsonObject.put(EMOJI_TEXT,"["+face.getEmoText()+"]");
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                Map<String,Object> params = new HashMap<String, Object>();
+                params.put(TXT_MSGTYPE,FACETYPE);
+                params.put(MSG_DATA, msgCodes);
+                params.put(EMOJI_TEXT,"["+face.getEmoText()+"]");
+                IMMessage textMessage = createTextMessage("["+face.getEmoText()+"]");
+                textMessage.setRemoteExtension(params);
+                container.proxy.sendMessage(textMessage);
+            }
+
+            /**
+             * 图文混排消息
+             */
+            @Override
+            public void onSendMixedMessage(List<Object> emojis, boolean isMixedMessage) {
+                if (TextUtils.isEmpty(messageEditText.getText().toString().trim())) {
+                    messageEditText.getText().clear();
+                    messageEditText.setText("");
+                    return;
+                }
+                String msgString = BQMMMessageHelper.getMixedMessageString(emojis);
+                //判断一下是纯文本还是富文本
+                if (isMixedMessage) {
+                    StringBuilder sb=new StringBuilder();
+                    for(int i=0;i<emojis.size();i++){
+
+                        if (emojis.get(i).getClass().equals(Emoji.class)) {
+                            Emoji item = (Emoji) emojis.get(i);
+                            String tempText = "[" + item.getEmoText() + "]";
+                            sb.append(tempText);
+                        } else {
+                            sb.append(emojis.get(i).toString());
+                        }
+                    }
+                    JSONArray msgCodes = BQMMMessageHelper.getMixedMessageData(emojis);
+                    Map<String,Object> params = new HashMap<String, Object>();
+                    params.put(TXT_MSGTYPE, EMOJITYPE);
+                    params.put(MSG_DATA, msgCodes);
+
+                    IMMessage textMessage = createTextMessage(sb.toString());
+                    textMessage.setRemoteExtension(params);
+                    if (container.proxy.sendMessage(textMessage)) {
+                        restoreText(true);
+                    }
+                } else {
+                    IMMessage textMessage = createTextMessage(msgString);
+
+                    if (container.proxy.sendMessage(textMessage)) {
+                        restoreText(true);
+                    }
+                }
+            }
+        });
     }
 
     private void initInputBarListener() {
         switchToTextButtonInInputBar.setOnClickListener(clickListener);
         switchToAudioButtonInInputBar.setOnClickListener(clickListener);
         emojiButtonInInputBar.setOnClickListener(clickListener);
-        sendMessageButtonInInputBar.setOnClickListener(clickListener);
         moreFuntionButtonInInputBar.setOnClickListener(clickListener);
     }
 
@@ -410,7 +527,6 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         messageEditText.requestFocus();
         uiHandler.postDelayed(showEmojiRunnable, 200);
         emoticonPickerView.setVisibility(View.VISIBLE);
-        emoticonPickerView.show(this);
         container.proxy.onInputPanelExpand();
     }
 

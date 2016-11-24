@@ -54,7 +54,7 @@
             android:visibility="gone" />
     </FrameLayout>
 
-    <EditText
+    <com.melink.bqmmsdk.widget.BQMMEditView
         android:id="@+id/editTextMessage"
         style="@style/edit_text_style"
         android:layout_width="match_parent"
@@ -96,7 +96,7 @@
             android:contentDescription="@string/empty"
             android:scaleType="center" />
 
-        <TextView
+        <com.melink.bqmmsdk.widget.BQMMSendButton
             android:id="@+id/buttonSendMessage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

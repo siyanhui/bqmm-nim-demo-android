@@ -114,8 +114,8 @@ public abstract class RecentViewHolder extends TViewHolder implements OnClickLis
 
     private void updateMsgLabel() {
         // 显示消息具体内容
-        MoonUtil.identifyFaceExpressionAndTags(context, tvMessage, getContent(), ImageSpan.ALIGN_BOTTOM, 0.45f);
-        //tvMessage.setText(getContent());
+//        MoonUtil.identifyFaceExpressionAndTags(context, tvMessage, getContent(), ImageSpan.ALIGN_BOTTOM, 0.45f);
+        tvMessage.setText(getContent());
 
         MsgStatusEnum status = recent.getMsgStatus();
         switch (status) {

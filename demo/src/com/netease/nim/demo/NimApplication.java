@@ -5,15 +5,18 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.os.Bundle;
 import android.os.Environment;
 import android.support.multidex.MultiDex;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.melink.bqmmsdk.sdk.BQMM;
 import com.netease.nim.demo.avchat.AVChatProfile;
 import com.netease.nim.demo.avchat.activity.AVChatActivity;
 import com.netease.nim.demo.common.util.crash.AppCrashHandler;
@@ -103,6 +106,17 @@ public class NimApplication extends Application {
             registerLocaleReceiver(true);
         }
         CrashReport.initCrashReport(getApplicationContext());
+
+        /**
+         * BQMM集成
+         * 首先从AndroidManifest.xml中取得appId和appSecret，然后对BQMM SDK进行初始化
+         */
+        try {
+            Bundle bundle = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA).metaData;
+            BQMM.getInstance().initConfig(this, bundle.getString("bqmm_app_id"), bundle.getString("bqmm_app_secret"));
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private LoginInfo getLoginInfo() {

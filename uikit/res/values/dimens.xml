@@ -87,4 +87,8 @@
     <dimen name="input_panel_image_margin_bottom">3dip</dimen>
     <dimen name="input_panel_image_margin_top">20dip</dimen>
 
+    <!-- BQMM集成 -->
+    <dimen name="bqmm_popup_view_offset">40dip</dimen>
+    <dimen name="bqmm_sticker_size">100dip</dimen>
+    <dimen name="bqmm_emoji_size">20dip</dimen>
 </resources>
