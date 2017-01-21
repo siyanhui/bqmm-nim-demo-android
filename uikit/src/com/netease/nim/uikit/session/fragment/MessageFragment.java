@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.melink.bqmmsdk.sdk.BQMM;
 import com.netease.nim.uikit.R;
 import com.netease.nim.uikit.common.fragment.TFragment;
 import com.netease.nim.uikit.session.SessionCustomization;
@@ -91,6 +92,7 @@ public class MessageFragment extends TFragment implements ModuleProxy {
         super.onDestroy();
         messageListPanel.onDestroy();
         registerObservers(false);
+        BQMM.getInstance().destroy();
     }
 
     public boolean onBackPressed() {
