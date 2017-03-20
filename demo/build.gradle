@@ -99,7 +99,7 @@ android {
 dependencies {
     compile fileTree(include: '*.jar', dir: 'libs')
     compile project(path: ':uikit')
-    compile 'com.tencent.bugly:crashreport:latest.release'
+    compile 'com.tencent.bugly:crashreport:2.3.1'
 
 
 
