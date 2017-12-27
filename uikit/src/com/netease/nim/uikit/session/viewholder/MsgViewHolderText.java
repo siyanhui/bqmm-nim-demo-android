@@ -17,6 +17,7 @@ import com.netease.nim.uikit.session.emoji.MoonUtil;
 import com.netease.nim.uikit.session.module.input.InputPanel;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,17 +52,29 @@ public class MsgViewHolderText extends MsgViewHolderBase {
         bodyTextView.setOnLongClickListener(longClickListener);
         String msgType = "";
         JSONArray jsonArray = null;
+        JSONObject jsonObject = null;
         if (message.getRemoteExtension() != null && message.getRemoteExtension().containsKey(InputPanel.TXT_MSGTYPE) && message.getRemoteExtension().containsKey(InputPanel.MSG_DATA)) {
             HashMap<String, Object> hashMap = (HashMap<String, Object>) message.getRemoteExtension();
             msgType = (String) hashMap.get(InputPanel.TXT_MSGTYPE);
-            ArrayList<String> arrayList = (ArrayList<String>) hashMap.get(InputPanel.MSG_DATA);
-            jsonArray = new JSONArray(arrayList);
-            if (TextUtils.equals(msgType, InputPanel.FACETYPE)) {
+            if(TextUtils.equals(msgType,InputPanel.WEBTYPE)){
+                HashMap<String,String> gifHashMap= (HashMap<String, String>) hashMap.get(InputPanel.MSG_DATA);
+                jsonObject = new JSONObject(gifHashMap);
+            }else {
+                ArrayList<String> arrayList = (ArrayList<String>) hashMap.get(InputPanel.MSG_DATA);
+                jsonArray = new JSONArray(arrayList);
+            }
+        
+            if (TextUtils.equals(msgType, InputPanel.FACETYPE) || TextUtils.equals(msgType, InputPanel.WEBTYPE)) {
                 bodyTextView.setBackgroundResource(0);
             }
         }
-        bodyTextView.showMessage(getDisplayText(), msgType, jsonArray);
-    }
+        if(TextUtils.equals(msgType,InputPanel.WEBTYPE)){
+            bodyTextView.showBQMMGif(jsonObject.optString("data_id"), jsonObject.optString("sticker_url"), jsonObject.optInt("w"), jsonObject.optInt("h"), jsonObject.optInt("is_gif"));
+        }else {
+            bodyTextView.showMessage(getDisplayText(), msgType, jsonArray);
+        }
+
+}
 
     private void layoutDirection() {
         BQMMMessageText bodyTextView = findViewById(R.id.nim_message_item_text_body);

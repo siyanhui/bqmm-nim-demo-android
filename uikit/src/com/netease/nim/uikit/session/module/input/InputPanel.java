@@ -25,15 +25,19 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.alibaba.fastjson.JSONObject;
+import com.melink.bqmmsdk.bean.BQMMGif;
 import com.melink.bqmmsdk.bean.Emoji;
 import com.melink.bqmmsdk.sdk.BQMM;
 import com.melink.bqmmsdk.sdk.BQMMMessageHelper;
 import com.melink.bqmmsdk.sdk.IBqmmSendMessageListener;
 import com.melink.bqmmsdk.ui.keyboard.BQMMKeyboard;
+import com.melink.bqmmsdk.ui.keyboard.IGifButtonClickListener;
 import com.melink.bqmmsdk.widget.BQMMEditView;
 import com.melink.bqmmsdk.widget.BQMMSendButton;
 import com.netease.nim.uikit.NimUIKit;
 import com.netease.nim.uikit.R;
+import com.netease.nim.uikit.bqmmgif.BQMMGifManager;
+import com.netease.nim.uikit.bqmmgif.IBqmmSendGifListener;
 import com.netease.nim.uikit.common.ui.dialog.EasyAlertDialogHelper;
 import com.netease.nim.uikit.common.util.log.LogUtil;
 import com.netease.nim.uikit.common.util.string.StringUtil;
@@ -73,7 +77,10 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
      */
     public static final String EMOJITYPE = "emojitype";
     public static final String FACETYPE = "facetype";
-
+    /**
+     * BQMM SDK 2.0.0后新增Gif类型
+     */
+    public static final String WEBTYPE = "webtype";
     /**
      * 用于在消息的附加信息里表示表情文字
      */
@@ -202,10 +209,23 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         BQMM bqmm = BQMM.getInstance();
         //初始化表情MM键盘，需要传入关联的EditView,SendBtn
         bqmm.setEditView(messageEditText);
-        bqmm.setKeyboard(emoticonPickerView);
+        bqmm.setKeyboard(emoticonPickerView, new IGifButtonClickListener() {
+            @Override
+            public void didClickGifTab() {
+                hideEmojiLayout();
+                messageEditText.requestFocus();
+                showInputMethod(messageEditText);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        BQMMGifManager.getInstance(messageEditText.getContext()).showTrending();
+                    }
+                },300);
+            }
+        });
         bqmm.setSendButton(sendMessageButtonInInputBar);
         bqmm.load();
-
+        BQMMGifManager.getInstance(messageEditText.getContext()).addEditViewListeners();
         // 显示录音按钮
         switchToTextButtonInInputBar.setVisibility(View.GONE);
         switchToAudioButtonInInputBar.setVisibility(View.VISIBLE);
@@ -305,6 +325,28 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
                         restoreText(true);
                     }
                 }
+            }
+        });
+        BQMMGifManager.getInstance(messageEditText.getContext()).setBQMMSendGifListener(new IBqmmSendGifListener() {
+            @Override
+            public void onSendBQMMGif(BQMMGif bqmmGif) {
+                org.json.JSONObject gifJsonObject = new org.json.JSONObject();
+                try {
+                    gifJsonObject.put("data_id",bqmmGif.getSticker_id());
+                    gifJsonObject.put("h",bqmmGif.getSticker_height());
+                    gifJsonObject.put("w",bqmmGif.getSticker_width());
+                    gifJsonObject.put("sticker_url",bqmmGif.getSticker_url());
+                    gifJsonObject.put("is_gif",bqmmGif.getIs_gif());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                Map<String,Object> params = new HashMap<String, Object>();
+                params.put(TXT_MSGTYPE,WEBTYPE);
+                params.put(MSG_DATA, gifJsonObject);
+                params.put(EMOJI_TEXT,"["+bqmmGif.getText()+"]");
+                IMMessage textMessage = createTextMessage("["+bqmmGif.getText()+"]");
+                textMessage.setRemoteExtension(params);
+                container.proxy.sendMessage(textMessage);
             }
         });
     }
@@ -417,6 +459,7 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
             } else if (v == moreFuntionButtonInInputBar) {
                 toggleActionPanelLayout();
             } else if (v == emojiButtonInInputBar) {
+                BQMMGifManager.getInstance(emojiButtonInInputBar.getContext()).updateSearchModeAndSearchUIWithStatus(BQMMGifManager.BQMM_SEARCH_MODE_STATUS_KEYBOARD_HIDE);
                 toggleEmojiLayout();
             }
         }
