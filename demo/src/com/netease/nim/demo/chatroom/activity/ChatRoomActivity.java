@@ -8,11 +8,11 @@ import android.widget.Toast;
 
 import com.netease.nim.demo.R;
 import com.netease.nim.demo.chatroom.fragment.ChatRoomFragment;
-import com.netease.nim.demo.chatroom.fragment.ChatRoomMessageFragment;
-import com.netease.nim.demo.chatroom.helper.ChatRoomMemberCache;
+import com.netease.nim.uikit.business.chatroom.fragment.ChatRoomMessageFragment;
 import com.netease.nim.uikit.common.activity.UI;
 import com.netease.nim.uikit.common.ui.dialog.DialogMaker;
 import com.netease.nim.uikit.common.util.log.LogUtil;
+import com.netease.nim.uikit.api.NimUIKit;
 import com.netease.nimlib.sdk.AbortableFuture;
 import com.netease.nimlib.sdk.NIMClient;
 import com.netease.nimlib.sdk.Observer;
@@ -23,7 +23,6 @@ import com.netease.nimlib.sdk.chatroom.ChatRoomService;
 import com.netease.nimlib.sdk.chatroom.ChatRoomServiceObserver;
 import com.netease.nimlib.sdk.chatroom.model.ChatRoomInfo;
 import com.netease.nimlib.sdk.chatroom.model.ChatRoomKickOutEvent;
-import com.netease.nimlib.sdk.chatroom.model.ChatRoomMember;
 import com.netease.nimlib.sdk.chatroom.model.ChatRoomStatusChangeData;
 import com.netease.nimlib.sdk.chatroom.model.EnterChatRoomData;
 import com.netease.nimlib.sdk.chatroom.model.EnterChatRoomResultData;
@@ -41,7 +40,7 @@ public class ChatRoomActivity extends UI {
      */
     private String roomId;
     private ChatRoomInfo roomInfo;
-
+    private boolean hasEnterSuccess = false; // 是否已经成功登录聊天室
     private ChatRoomFragment fragment;
 
     /**
@@ -86,6 +85,14 @@ public class ChatRoomActivity extends UI {
         logoutChatRoom();
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (messageFragment != null) {
+            messageFragment.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+
     private void enterRoom() {
         DialogMaker.showProgressDialog(this, null, "", true, new DialogInterface.OnCancelListener() {
             @Override
@@ -97,25 +104,23 @@ public class ChatRoomActivity extends UI {
                 }
             }
         }).setCanceledOnTouchOutside(false);
+        hasEnterSuccess = false;
         EnterChatRoomData data = new EnterChatRoomData(roomId);
-        enterRequest = NIMClient.getService(ChatRoomService.class).enterChatRoom(data);
+
+        enterRequest = NIMClient.getService(ChatRoomService.class).enterChatRoomEx(data, 1);
         enterRequest.setCallback(new RequestCallback<EnterChatRoomResultData>() {
             @Override
             public void onSuccess(EnterChatRoomResultData result) {
                 onLoginDone();
                 roomInfo = result.getRoomInfo();
-                ChatRoomMember member = result.getMember();
-                member.setRoomId(roomInfo.getRoomId());
-                ChatRoomMemberCache.getInstance().saveMyMember(member);
+                NimUIKit.enterChatRoomSuccess(result, false);
                 initChatRoomFragment();
                 initMessageFragment();
+                hasEnterSuccess = true;
             }
 
             @Override
             public void onFailed(int code) {
-                // test
-                LogUtil.ui("enter chat room failed, callback code=" + code);
-
                 onLoginDone();
                 if (code == ResponseCode.RES_CHATROOM_BLACKLIST) {
                     Toast.makeText(ChatRoomActivity.this, "你已被拉入黑名单，不能再进入", Toast.LENGTH_SHORT).show();
@@ -143,11 +148,11 @@ public class ChatRoomActivity extends UI {
 
     private void logoutChatRoom() {
         NIMClient.getService(ChatRoomService.class).exitChatRoom(roomId);
-        clearChatRoom();
+        onExitedChatRoom();
     }
 
-    public void clearChatRoom() {
-        ChatRoomMemberCache.getInstance().clearRoomCache(roomId);
+    public void onExitedChatRoom() {
+        NimUIKit.exitedChatRoom(roomId);
         finish();
     }
 
@@ -169,10 +174,12 @@ public class ChatRoomActivity extends UI {
                 if (fragment != null) {
                     fragment.updateOnlineStatus(false);
                 }
-                int code = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId);
-                LogUtil.d(TAG, "chat room enter error code:" + code);
-                if (code != ResponseCode.RES_ECONNECTION) {
-                    Toast.makeText(ChatRoomActivity.this, "未登录,code=" + code, Toast.LENGTH_LONG).show();
+
+                // 登录成功后，断网重连交给云信SDK，如果重连失败，可以查询具体失败的原因
+                if (hasEnterSuccess) {
+                    int code = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId);
+                    Toast.makeText(ChatRoomActivity.this, "getEnterErrorCode=" + code, Toast.LENGTH_LONG).show();
+                    LogUtil.d(TAG, "chat room enter error code:" + code);
                 }
             } else if (chatRoomStatusChangeData.status == StatusCode.NET_BROKEN) {
                 if (fragment != null) {
@@ -189,7 +196,7 @@ public class ChatRoomActivity extends UI {
         @Override
         public void onEvent(ChatRoomKickOutEvent chatRoomKickOutEvent) {
             Toast.makeText(ChatRoomActivity.this, "被踢出聊天室，原因:" + chatRoomKickOutEvent.getReason(), Toast.LENGTH_SHORT).show();
-            clearChatRoom();
+            onExitedChatRoom();
         }
     };
 

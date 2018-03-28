@@ -12,7 +12,7 @@
         android:layout_height="0dip"
         android:layout_weight="1">
 
-        <com.netease.nim.uikit.session.helper.MsgBkImageView
+        <com.netease.nim.uikit.business.session.helper.MsgBkImageView
             android:id="@+id/message_activity_background"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
@@ -29,17 +29,12 @@
 
             </FrameLayout>
 
-            <com.netease.nim.uikit.common.ui.listview.MessageListView
+            <android.support.v7.widget.RecyclerView
                 android:id="@+id/messageListView"
-                style="@style/list_view"
+                style="@style/recycler_view"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:cacheColorHint="@android:color/transparent"
-                android:divider="@null"
-                android:fadingEdge="none"
-                android:focusable="false"
-                android:listSelector="@android:color/transparent"
-                android:scrollbars="vertical"/>
+                />
         </LinearLayout>
 
         <FrameLayout

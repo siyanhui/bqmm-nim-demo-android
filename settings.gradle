@@ -1,3 +1,5 @@
 include ':uikit' 
-include ':demo'
-include ':BQMM_Lib'
+include ':demo' 
+include ':faceunity' 
+include ':jrmfRpWalletlib'
+include ':avchatkit'

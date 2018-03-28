@@ -24,7 +24,9 @@ import com.netease.nim.demo.config.preference.Preferences;
 import com.netease.nim.demo.config.preference.UserPreferences;
 import com.netease.nim.demo.contact.ContactHttpClient;
 import com.netease.nim.demo.main.activity.MainActivity;
-import com.netease.nim.uikit.cache.DataCacheManager;
+import com.netease.nim.uikit.api.NimUIKit;
+import com.netease.nim.uikit.api.wrapper.NimToolBarOptions;
+import com.netease.nim.uikit.common.activity.ToolBarOptions;
 import com.netease.nim.uikit.common.activity.UI;
 import com.netease.nim.uikit.common.ui.dialog.DialogMaker;
 import com.netease.nim.uikit.common.ui.dialog.EasyAlertDialogHelper;
@@ -33,15 +35,16 @@ import com.netease.nim.uikit.common.util.log.LogUtil;
 import com.netease.nim.uikit.common.util.string.MD5;
 import com.netease.nim.uikit.common.util.sys.NetworkUtil;
 import com.netease.nim.uikit.common.util.sys.ScreenUtil;
-import com.netease.nim.uikit.model.ToolBarOptions;
-import com.netease.nim.uikit.permission.MPermission;
-import com.netease.nim.uikit.permission.annotation.OnMPermissionDenied;
-import com.netease.nim.uikit.permission.annotation.OnMPermissionGranted;
+import com.netease.nim.uikit.support.permission.MPermission;
+import com.netease.nim.uikit.support.permission.annotation.OnMPermissionDenied;
+import com.netease.nim.uikit.support.permission.annotation.OnMPermissionGranted;
+import com.netease.nim.uikit.support.permission.annotation.OnMPermissionNeverAskAgain;
 import com.netease.nimlib.sdk.AbortableFuture;
 import com.netease.nimlib.sdk.NIMClient;
 import com.netease.nimlib.sdk.RequestCallback;
 import com.netease.nimlib.sdk.RequestCallbackWrapper;
 import com.netease.nimlib.sdk.ResponseCode;
+import com.netease.nimlib.sdk.StatusBarNotificationConfig;
 import com.netease.nimlib.sdk.auth.AuthService;
 import com.netease.nimlib.sdk.auth.ClientType;
 import com.netease.nimlib.sdk.auth.LoginInfo;
@@ -100,7 +103,7 @@ public class LoginActivity extends UI implements OnKeyListener {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.login_activity);
 
-        ToolBarOptions options = new ToolBarOptions();
+        ToolBarOptions options = new NimToolBarOptions();
         options.isNeedNavigate = false;
         options.logoId = R.drawable.actionbar_white_logo_space;
         setToolBar(R.id.toolbar, options);
@@ -116,13 +119,16 @@ public class LoginActivity extends UI implements OnKeyListener {
     /**
      * 基本权限管理
      */
+
+    private final String[] BASIC_PERMISSIONS = new String[]{
+            Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            Manifest.permission.READ_EXTERNAL_STORAGE
+    };
+
     private void requestBasicPermission() {
         MPermission.with(LoginActivity.this)
-                .addRequestCode(BASIC_PERMISSION_REQUEST_CODE)
-                .permissions(
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
-                        Manifest.permission.READ_EXTERNAL_STORAGE
-                )
+                .setRequestCode(BASIC_PERMISSION_REQUEST_CODE)
+                .permissions(BASIC_PERMISSIONS)
                 .request();
     }
 
@@ -132,12 +138,13 @@ public class LoginActivity extends UI implements OnKeyListener {
     }
 
     @OnMPermissionGranted(BASIC_PERMISSION_REQUEST_CODE)
-    public void onBasicPermissionSuccess(){
+    public void onBasicPermissionSuccess() {
         Toast.makeText(this, "授权成功", Toast.LENGTH_SHORT).show();
     }
 
     @OnMPermissionDenied(BASIC_PERMISSION_REQUEST_CODE)
-    public void onBasicPermissionFailed(){
+    @OnMPermissionNeverAskAgain(BASIC_PERMISSION_REQUEST_CODE)
+    public void onBasicPermissionFailed() {
         Toast.makeText(this, "授权失败", Toast.LENGTH_SHORT).show();
     }
 
@@ -150,6 +157,7 @@ public class LoginActivity extends UI implements OnKeyListener {
                     client = "网页端";
                     break;
                 case ClientType.Windows:
+                case ClientType.MAC:
                     client = "电脑端";
                     break;
                 case ClientType.REST:
@@ -273,27 +281,18 @@ public class LoginActivity extends UI implements OnKeyListener {
         final String account = loginAccountEdit.getEditableText().toString().toLowerCase();
         final String token = tokenFromPassword(loginPasswordEdit.getEditableText().toString());
         // 登录
-        loginRequest = NIMClient.getService(AuthService.class).login(new LoginInfo(account, token));
-        loginRequest.setCallback(new RequestCallback<LoginInfo>() {
+        loginRequest = NimUIKit.login(new LoginInfo(account, token), new RequestCallback<LoginInfo>() {
             @Override
             public void onSuccess(LoginInfo param) {
                 LogUtil.i(TAG, "login success");
 
                 onLoginDone();
+
                 DemoCache.setAccount(account);
                 saveLoginInfo(account, token);
 
-                // 初始化消息提醒
-                NIMClient.toggleNotification(UserPreferences.getNotificationToggle());
-
-                // 初始化免打扰
-                if (UserPreferences.getStatusConfig() == null) {
-                    UserPreferences.setStatusConfig(DemoCache.getNotificationConfig());
-                }
-                NIMClient.updateStatusBarNotificationConfig(UserPreferences.getStatusConfig());
-
-                // 构建缓存
-                DataCacheManager.buildDataCacheAsync();
+                // 初始化消息提醒配置
+                initNotificationConfig();
 
                 // 进入主界面
                 MainActivity.start(LoginActivity.this, null);
@@ -318,6 +317,19 @@ public class LoginActivity extends UI implements OnKeyListener {
         });
     }
 
+    private void initNotificationConfig() {
+        // 初始化消息提醒
+        NIMClient.toggleNotification(UserPreferences.getNotificationToggle());
+
+        // 加载状态栏配置
+        StatusBarNotificationConfig statusBarNotificationConfig = UserPreferences.getStatusConfig();
+        if (statusBarNotificationConfig == null) {
+            statusBarNotificationConfig = DemoCache.getNotificationConfig();
+            UserPreferences.setStatusConfig(statusBarNotificationConfig);
+        }
+        // 更新配置
+        NIMClient.updateStatusBarNotificationConfig(statusBarNotificationConfig);
+    }
 
     private void onLoginDone() {
         loginRequest = null;
@@ -393,7 +405,7 @@ public class LoginActivity extends UI implements OnKeyListener {
 
             @Override
             public void onFailed(int code, String errorMsg) {
-                Toast.makeText(LoginActivity.this, getString(R.string.register_failed, code, errorMsg), Toast.LENGTH_SHORT)
+                Toast.makeText(LoginActivity.this, getString(R.string.register_failed, String.valueOf(code), errorMsg), Toast.LENGTH_SHORT)
                         .show();
 
                 DialogMaker.dismissProgressDialog();
@@ -502,17 +514,11 @@ public class LoginActivity extends UI implements OnKeyListener {
         // Demo缓存当前假登录的账号
         DemoCache.setAccount(account);
 
-        // 初始化消息提醒
-        NIMClient.toggleNotification(UserPreferences.getNotificationToggle());
+        // 初始化消息提醒配置
+        initNotificationConfig();
 
-        // 初始化免打扰
-        if (UserPreferences.getStatusConfig() == null) {
-            UserPreferences.setStatusConfig(DemoCache.getNotificationConfig());
-        }
-        NIMClient.updateStatusBarNotificationConfig(UserPreferences.getStatusConfig());
-
-        // 构建缓存
-        DataCacheManager.buildDataCacheAsync();
+        // 设置uikit
+        NimUIKit.loginSuccess(account);
 
         // 进入主界面，此时可以查询数据（最近联系人列表、本地消息历史、群资料等都可以查询，但当云信服务器发起请求会返回408超时）
         MainActivity.start(LoginActivity.this, null);

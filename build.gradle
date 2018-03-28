@@ -6,21 +6,24 @@ buildscript {
 
 allprojects {
     repositories {
-//        maven {
-//        url 'http://maven.oschina.net/content/groups/public/'
-//    }
+        google()
         jcenter()
-
+        mavenCentral()
+        maven {url 'http://developer.huawei.com/repo'}
+        maven { url 'https://fabric-artifacts.s3.amazonaws.com/public' }
     }
 }
 
 ext {
-    compileSdkVersion = 21
-    buildToolsVersion = buildToolsVer
-    minSdkVersion = 9
-    targetSdkVersion = 19
-    versionCode = 29
-    versionName = '3.1.0'
-    targetCompatibility = 1.7
-    sourceCompatibility = 1.7
+    compileSdkVersion = 26
+    buildToolsVersion = '26.0.2'
+    minSdkVersion = 14
+    targetSdkVersion = 26
+    appTargetSdkVersion = 26
+    versionCode = 46
+    versionName = '4.9.0'
+    sdkSourceCompatibility = 1.7
+    sdkTargetCompatibility = 1.7
+    appSourceCompatibility = 1.7
+    appTargetCompatibility = 1.7
 }

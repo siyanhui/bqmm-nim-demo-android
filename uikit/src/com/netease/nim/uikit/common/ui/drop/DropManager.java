@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.text.TextPaint;
+import android.view.View;
 
 import com.netease.nim.uikit.R;
 import com.netease.nim.uikit.common.util.log.LogUtil;
@@ -21,6 +22,12 @@ public class DropManager {
 
     static final int CIRCLE_RADIUS = ScreenUtil.dip2px(10); // 10dip
 
+    public interface IDropListener {
+        void onDropBegin();
+
+        void onDropEnd();
+    }
+
     // single instance
     private static DropManager instance;
 
@@ -33,7 +40,7 @@ public class DropManager {
     }
 
     // field
-    private boolean isTouchable; // 是否响应按键事件，如果一个气泡已经在响应，其它气泡就不响应，同一界面始终最多只有一个气泡响应按键
+    private boolean isTouchable; // 是否响应按键事件，如果一个红点已经在响应，其它红点就不响应，同一界面始终最多只有一个红点响应触摸
 
     private int statusBarHeight; // 状态栏(通知栏)高度
 
@@ -47,12 +54,15 @@ public class DropManager {
 
     private Paint circlePaint; // 圆形画笔共享
 
+    private IDropListener listener; // 红点拖拽动画监听器
+
+    private boolean enable;
     private int[] explosionResIds = new int[]{
-            R.drawable.explosion_one,
-            R.drawable.explosion_two,
-            R.drawable.explosion_three,
-            R.drawable.explosion_four,
-            R.drawable.explosion_five
+            R.drawable.nim_explosion_one,
+            R.drawable.nim_explosion_two,
+            R.drawable.nim_explosion_three,
+            R.drawable.nim_explosion_four,
+            R.drawable.nim_explosion_five
     };
 
     // interface
@@ -61,6 +71,8 @@ public class DropManager {
         this.statusBarHeight = ScreenUtil.getStatusBarHeight(context);
         this.dropCover = dropCover;
         this.dropCover.addDropCompletedListener(listener);
+        this.listener = null;
+        this.enable = true;
 
         LogUtil.i(TAG, "init DropManager, statusBarHeight=" + statusBarHeight);
     }
@@ -73,30 +85,79 @@ public class DropManager {
     public void destroy() {
         this.isTouchable = false;
         this.statusBarHeight = 0;
-        this.dropCover.removeAllDropCompletedListeners();
-        this.dropCover = null;
+        if (this.dropCover != null) {
+            this.dropCover.removeAllDropCompletedListeners();
+            this.dropCover = null;
+        }
         this.currentId = null;
         this.textPaint = null;
         this.textYOffset = 0;
         this.circlePaint = null;
-
+        this.enable = false;
         LogUtil.i(TAG, "destroy DropManager");
     }
 
+    public boolean isEnable() {
+        return enable;
+    }
+
     public boolean isTouchable() {
+        if (!enable) {
+            return true;
+        }
         return isTouchable;
     }
 
     public void setTouchable(boolean isTouchable) {
         this.isTouchable = isTouchable;
+
+        if (listener != null) {
+            if (!isTouchable) {
+                listener.onDropBegin(); // touchable = false
+            } else {
+                listener.onDropEnd(); // touchable = true
+            }
+        }
     }
 
     public int getTop() {
         return statusBarHeight;
     }
 
-    public DropCover getDropCover() {
-        return this.dropCover;
+    public void down(View fakeView, String text) {
+        if (dropCover == null) {
+            return;
+        }
+
+        dropCover.down(fakeView, text);
+    }
+
+    public void move(float curX, float curY) {
+        if (dropCover == null) {
+            return;
+        }
+
+        dropCover.move(curX, curY);
+    }
+
+    public void up() {
+        if (dropCover == null) {
+            return;
+        }
+
+        dropCover.up();
+    }
+
+    public void addDropCompletedListener(DropCover.IDropCompletedListener listener) {
+        if (dropCover != null) {
+            dropCover.addDropCompletedListener(listener);
+        }
+    }
+
+    public void removeDropCompletedListener(DropCover.IDropCompletedListener listener) {
+        if (dropCover != null) {
+            dropCover.removeDropCompletedListener(listener);
+        }
     }
 
     public void setCurrentId(Object currentId) {
@@ -144,5 +205,9 @@ public class DropManager {
 
     public int[] getExplosionResIds() {
         return explosionResIds;
+    }
+
+    public void setDropListener(IDropListener listener) {
+        this.listener = listener;
     }
 }

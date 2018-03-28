@@ -9,22 +9,23 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.TextView;
 
 import com.netease.nim.demo.R;
-import com.netease.nim.demo.session.SessionHelper;
-import com.netease.nim.uikit.cache.NimUserInfoCache;
-import com.netease.nim.uikit.cache.TeamDataCache;
+import com.netease.nim.demo.session.search.DisplayMessageActivity;
+import com.netease.nim.uikit.business.contact.core.item.AbsContactItem;
+import com.netease.nim.uikit.business.contact.core.item.ItemTypes;
+import com.netease.nim.uikit.business.contact.core.item.MsgItem;
+import com.netease.nim.uikit.business.contact.core.model.ContactDataAdapter;
+import com.netease.nim.uikit.business.contact.core.provider.ContactDataProvider;
+import com.netease.nim.uikit.business.contact.core.provider.MsgDataProvider;
+import com.netease.nim.uikit.business.contact.core.query.IContactDataProvider;
+import com.netease.nim.uikit.business.contact.core.query.TextQuery;
+import com.netease.nim.uikit.business.contact.core.viewholder.LabelHolder;
+import com.netease.nim.uikit.business.contact.core.viewholder.MsgHolder;
+import com.netease.nim.uikit.business.team.helper.TeamHelper;
+import com.netease.nim.uikit.business.uinfo.UserInfoHelper;
+import com.netease.nim.uikit.common.activity.ToolBarOptions;
 import com.netease.nim.uikit.common.activity.UI;
 import com.netease.nim.uikit.common.ui.listview.AutoRefreshListView;
-import com.netease.nim.uikit.contact.core.item.AbsContactItem;
-import com.netease.nim.uikit.contact.core.item.ItemTypes;
-import com.netease.nim.uikit.contact.core.item.MsgItem;
-import com.netease.nim.uikit.contact.core.model.ContactDataAdapter;
-import com.netease.nim.uikit.contact.core.provider.ContactDataProvider;
-import com.netease.nim.uikit.contact.core.provider.MsgDataProvider;
-import com.netease.nim.uikit.contact.core.query.IContactDataProvider;
-import com.netease.nim.uikit.contact.core.query.TextQuery;
-import com.netease.nim.uikit.contact.core.viewholder.LabelHolder;
-import com.netease.nim.uikit.contact.core.viewholder.MsgHolder;
-import com.netease.nim.uikit.model.ToolBarOptions;
+import com.netease.nim.uikit.api.wrapper.NimToolBarOptions;
 import com.netease.nimlib.sdk.msg.constant.SessionTypeEnum;
 import com.netease.nimlib.sdk.search.model.MsgIndexRecord;
 
@@ -77,11 +78,11 @@ public class GlobalSearchDetailActivity2 extends UI implements OnItemClickListen
         setContentView(R.layout.global_search_detail);
 
         // title name
-        ToolBarOptions options = new ToolBarOptions();
+        ToolBarOptions options = new NimToolBarOptions();
         if (sessionType == SessionTypeEnum.P2P) {
-            options.titleString = NimUserInfoCache.getInstance().getUserDisplayName(sessionId);
+            options.titleString = UserInfoHelper.getUserDisplayName(sessionId);
         } else if (sessionType == SessionTypeEnum.Team) {
-            options.titleString = TeamDataCache.getInstance().getTeamName(sessionId);
+            options.titleString = TeamHelper.getTeamName(sessionId);
         }
         setToolBar(R.id.toolbar, options);
 
@@ -94,7 +95,7 @@ public class GlobalSearchDetailActivity2 extends UI implements OnItemClickListen
         lvContacts = findView(R.id.search_result_list);
         IContactDataProvider dataProvider = new ContactDataProviderSearch(new ArrayList<AbsContactItem>(), ItemTypes.MSG);
 
-        adapter = new ContactDataAdapter(this, null, dataProvider){
+        adapter = new ContactDataAdapter(this, null, dataProvider) {
             @Override
             protected void onPostLoad(boolean empty, String query, boolean all) {
                 super.onPostLoad(empty, query, all);
@@ -117,7 +118,7 @@ public class GlobalSearchDetailActivity2 extends UI implements OnItemClickListen
                 // query data
                 if (dataList != null && dataList.size() < resultCount) {
                     TextQuery textQuery = new TextQuery(query);
-                    textQuery.extra = new Object[]{sessionType, sessionId,  ((MsgItem)(dataList.get(dataList.size() - 1))).getRecord()};
+                    textQuery.extra = new Object[]{sessionType, sessionId, ((MsgItem) (dataList.get(dataList.size() - 1))).getRecord()};
 
                     adapter.query(textQuery);
                 } else {
@@ -133,6 +134,7 @@ public class GlobalSearchDetailActivity2 extends UI implements OnItemClickListen
     }
 
     private List<AbsContactItem> dataList;
+
     private class ContactDataProviderSearch extends ContactDataProvider {
 
         public ContactDataProviderSearch(List<AbsContactItem> data, int... itemTypes) {
@@ -161,11 +163,7 @@ public class GlobalSearchDetailActivity2 extends UI implements OnItemClickListen
         switch (item.getItemType()) {
             case ItemTypes.MSG: {
                 MsgIndexRecord msgIndexRecord = ((MsgItem) item).getRecord();
-                if (msgIndexRecord.getSessionType() == SessionTypeEnum.P2P) {
-                    SessionHelper.startP2PSession(this, msgIndexRecord.getSessionId(), msgIndexRecord.getMessage());
-                } else if (msgIndexRecord.getSessionType() == SessionTypeEnum.Team) {
-                    SessionHelper.startTeamSession(this, msgIndexRecord.getSessionId(), msgIndexRecord.getMessage());
-                }
+                DisplayMessageActivity.start(this, msgIndexRecord.getMessage());
                 break;
             }
 

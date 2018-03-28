@@ -1,7 +1,10 @@
 package com.netease.nim.demo.chatroom.fragment;
 
+import android.app.Activity;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.Log;
@@ -9,25 +12,21 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
-import android.widget.AdapterView;
-import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.netease.nim.demo.DemoCache;
 import com.netease.nim.demo.R;
 import com.netease.nim.demo.chatroom.activity.ChatRoomActivity;
-import com.netease.nim.demo.chatroom.helper.ChatRoomMemberCache;
-import com.netease.nim.demo.chatroom.viewholder.OnlinePeopleViewHolder;
-import com.netease.nim.uikit.cache.SimpleCallback;
-import com.netease.nim.uikit.common.adapter.TAdapter;
-import com.netease.nim.uikit.common.adapter.TAdapterDelegate;
-import com.netease.nim.uikit.common.adapter.TViewHolder;
+import com.netease.nim.demo.chatroom.adapter.ChatRoomOnlinePeopleAdapter;
+import com.netease.nim.uikit.api.NimUIKit;
+import com.netease.nim.uikit.api.model.SimpleCallback;
+import com.netease.nim.uikit.api.model.chatroom.RoomMemberChangedObserver;
 import com.netease.nim.uikit.common.fragment.TFragment;
 import com.netease.nim.uikit.common.ui.dialog.CustomAlertDialog;
 import com.netease.nim.uikit.common.ui.dialog.EasyEditDialog;
-import com.netease.nim.uikit.common.ui.ptr.PullToRefreshBase;
-import com.netease.nim.uikit.common.ui.ptr.PullToRefreshListView;
+import com.netease.nim.uikit.common.ui.ptr2.PullToRefreshLayout;
+import com.netease.nim.uikit.common.ui.recyclerview.adapter.BaseQuickAdapter;
+import com.netease.nim.uikit.common.ui.recyclerview.listener.SimpleClickListener;
 import com.netease.nimlib.sdk.NIMClient;
 import com.netease.nimlib.sdk.RequestCallback;
 import com.netease.nimlib.sdk.chatroom.ChatRoomService;
@@ -46,22 +45,23 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 聊天室在线人数fragment
- * Created by hzxuwen on 2015/12/17.
+ * <p>
+ * Created by huangjun on 2016/12/29.
  */
-public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate {
+public class OnlinePeopleFragment extends TFragment {
     private static final String TAG = OnlinePeopleFragment.class.getSimpleName();
-    private static final int LIMIT = 100;
+    private static final int LIMIT = 20;
 
-    private PullToRefreshListView listView;
-    private TextView onlineText;
-    private TAdapter<ChatRoomMember> adapter;
+    private PullToRefreshLayout swipeRefreshLayout;
+    private RecyclerView recyclerView;
+    private ChatRoomOnlinePeopleAdapter adapter;
     private List<ChatRoomMember> items = new ArrayList<>();
+
     private String roomId;
-    private Map<String, ChatRoomMember> memberCache = new ConcurrentHashMap<>();
     private long updateTime = 0; // 非游客的updateTime
     private long enterTime = 0; // 游客的enterTime
-
     private boolean isNormalEmpty = false; // 固定成员是否拉取完
+    private Map<String, ChatRoomMember> memberCache = new ConcurrentHashMap<>();
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -72,7 +72,6 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
-        initAdapter();
         findViews();
         registerObservers(true);
     }
@@ -80,7 +79,7 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
     public void onCurrent() {
         clearCache();
         roomId = ((ChatRoomActivity) getActivity()).getRoomInfo().getRoomId();
-        fetchData();
+        refreshData();
     }
 
     @Override
@@ -89,124 +88,194 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
         registerObservers(false);
     }
 
-    private void clearCache() {
+    private void resetStatus() {
         updateTime = 0;
         enterTime = 0;
-        items.clear();
-        memberCache.clear();
         isNormalEmpty = false;
     }
 
-    private void initAdapter() {
-        adapter = new TAdapter<>(getActivity(), items, this);
+    private void clearCache() {
+        resetStatus();
+        adapter.clearData();
+        memberCache.clear();
     }
 
     private void findViews() {
-        onlineText = findView(R.id.no_online_people);
-        listView = findView(R.id.chat_room_online_list);
-        listView.setAdapter(adapter);
-        listView.setOnRefreshListener(new PullToRefreshBase.OnRefreshListener2<ListView>() {
+        // swipeRefreshLayout
+        swipeRefreshLayout = findView(R.id.swipe_refresh);
+        swipeRefreshLayout.setPullUpEnable(false);
+        swipeRefreshLayout.setOnRefreshListener(new PullToRefreshLayout.OnRefreshListener() {
             @Override
-            public void onPullDownToRefresh(PullToRefreshBase<ListView> refreshView) {
-
+            public void onPullDownToRefresh() {
+                refreshData();
             }
 
             @Override
-            public void onPullUpToRefresh(PullToRefreshBase<ListView> refreshView) {
-                fetchData();
+            public void onPullUpToRefresh() {
+
             }
         });
 
-//        listView.setOnItemLongClickListener(longClickListener); // 线上入口屏蔽成员操作
-    }
-
-    private void stopRefreshing() {
-        postDelayed(new Runnable() {
+        // recyclerView
+        recyclerView = findView(R.id.recycler_view);
+        recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
+        recyclerView.addOnItemTouchListener(touchListener);
+        adapter = new ChatRoomOnlinePeopleAdapter(recyclerView, items);
+        adapter.setOnLoadMoreListener(new BaseQuickAdapter.RequestLoadMoreListener() {
             @Override
-            public void run() {
-                listView.onRefreshComplete();
+            public void onLoadMoreRequested() {
+                loadMoreData();
             }
-        }, 50);
+        });
+        recyclerView.setAdapter(adapter);
     }
 
-    /*************************** TAdapterDelegate **************************/
-    @Override
-    public int getViewTypeCount() {
-        return 1;
-    }
-
-    @Override
-    public Class<? extends TViewHolder> viewHolderAtPosition(int position) {
-        return OnlinePeopleViewHolder.class;
-    }
-
-    @Override
-    public boolean enabled(int position) {
-        return true;
-    }
-
-    private void fetchData() {
-        if (!isNormalEmpty) {
-            // 拉取固定在线成员
-            getMembers(MemberQueryType.ONLINE_NORMAL, updateTime, 0);
-        } else {
-            // 拉取非固定成员
-            getMembers(MemberQueryType.GUEST, enterTime, 0);
+    private void updateCache(List<ChatRoomMember> members) {
+        if (members == null || members.isEmpty()) {
+            return;
         }
-    }
 
-    /**
-     * 获取成员列表
-     */
-    private void getMembers(final MemberQueryType memberQueryType, final long time, int limit) {
-        ChatRoomMemberCache.getInstance().fetchRoomMembers(roomId, memberQueryType, time, (LIMIT - limit), new SimpleCallback<List<ChatRoomMember>>() {
-            @Override
-            public void onResult(boolean success, List<ChatRoomMember> result) {
-                if (success) {
-                    if (onlineText.getVisibility() == View.VISIBLE || result == null || result.isEmpty()) {
-                        onlineText.setVisibility(View.GONE);
-                    }
-
-                    addMembers(result);
-
-                    if (memberQueryType == MemberQueryType.ONLINE_NORMAL && result.size() < LIMIT) {
-                        isNormalEmpty = true; // 固定成员已经拉完
-                        getMembers(MemberQueryType.GUEST, enterTime, result.size());
-                    }
-                }
-
-                stopRefreshing();
-            }
-        });
-    }
-
-    private void addMembers(List<ChatRoomMember> members) {
         for (ChatRoomMember member : members) {
-            if (!isNormalEmpty) {
-                updateTime = member.getUpdateTime();
-            } else {
+            if (member.getMemberType() == MemberType.GUEST) {
                 enterTime = member.getEnterTime();
+            } else {
+                updateTime = member.getUpdateTime();
             }
 
             if (memberCache.containsKey(member.getAccount())) {
                 items.remove(memberCache.get(member.getAccount()));
             }
             memberCache.put(member.getAccount(), member);
-
             items.add(member);
         }
         Collections.sort(items, comp);
-        adapter.notifyDataSetChanged();
+    }
+
+    private void refreshData() {
+        adapter.setEnableLoadMore(false);
+        getData(true, new SimpleCallback<List<ChatRoomMember>>() {
+            @Override
+            public void onResult(final boolean success, final List<ChatRoomMember> result, int code) {
+                final Activity context = getActivity();
+                if (context == null) {
+                    return;
+                } else {
+                    context.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            // 刷新结束
+                            swipeRefreshLayout.setRefreshing(false);
+
+                            if (success) {
+                                clearCache();
+                                updateCache(result);
+                                adapter.notifyDataSetChanged();
+
+                                postDelayed(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (!isLastMessageVisible()) {
+                                            adapter.setEnableLoadMore(true); // 开启上拉加载
+                                        }
+                                    }
+                                }, 200);
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    private void loadMoreData() {
+        getData(false, new SimpleCallback<List<ChatRoomMember>>() {
+            @Override
+            public void onResult(final boolean success, final List<ChatRoomMember> result, int code) {
+                Activity context = getActivity();
+                if (context == null) {
+                    return;
+                } else {
+                    context.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (success) {
+                                if (result == null || result.isEmpty()) {
+                                    adapter.loadMoreEnd(true); // 没有更多数据了
+                                } else {
+                                    updateCache(result);
+                                    adapter.loadMoreComplete(); // 加载成功
+                                }
+                            } else {
+                                adapter.loadMoreFail(); // 加载失败
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    private void getData(final boolean fetching, final SimpleCallback<List<ChatRoomMember>> callback) {
+        // reset status
+        if (fetching) {
+            resetStatus();
+        }
+
+        // query type
+        final MemberQueryType memberQueryType = isNormalEmpty ? MemberQueryType.GUEST : MemberQueryType.ONLINE_NORMAL;
+        final long time = isNormalEmpty ? enterTime : updateTime;
+        final int expectNum = LIMIT;
+        final List<ChatRoomMember> resultList = new ArrayList<>();
+        NimUIKit.getChatRoomProvider().fetchRoomMembers(roomId, memberQueryType, time, expectNum, new
+                SimpleCallback<List<ChatRoomMember>>() {
+                    @Override
+                    public void onResult(boolean success, List<ChatRoomMember> result, int code) {
+                        if (success) {
+                            // 结果集
+                            resultList.addAll(result);
+
+                            // 固定成员已经拉完，不满预期数量，开始拉游客
+                            if (memberQueryType == MemberQueryType.ONLINE_NORMAL && result.size() < expectNum) {
+                                isNormalEmpty = true;
+                                final int expectNum2 = expectNum - result.size();
+                                NimUIKit.getChatRoomProvider().fetchRoomMembers(roomId, MemberQueryType.GUEST, enterTime, expectNum2, new
+                                        SimpleCallback<List<ChatRoomMember>>() {
+                                            @Override
+                                            public void onResult(boolean success, List<ChatRoomMember> result, int code) {
+                                                if (success) {
+                                                    // 结果集
+                                                    resultList.addAll(result);
+                                                    callback.onResult(true, resultList, code);
+                                                } else {
+                                                    callback.onResult(false, null, code);
+                                                }
+                                            }
+                                        });
+                            } else {
+                                // 固定成员拉取到位或者拉取游客成功
+                                callback.onResult(true, resultList, code);
+                            }
+                        } else {
+                            callback.onResult(false, null, code);
+                        }
+                    }
+                });
+    }
+
+    private boolean isLastMessageVisible() {
+        LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+        int lastVisiblePosition = layoutManager.findLastCompletelyVisibleItemPosition();
+        return lastVisiblePosition >= adapter.getBottomDataPosition();
     }
 
     /**
      * *************************** 成员操作监听 ****************************
      */
     private void registerObservers(boolean register) {
-        ChatRoomMemberCache.getInstance().registerRoomMemberChangedObserver(roomMemberChangedObserver, register);
+        NimUIKit.getChatRoomMemberChangedObservable().registerObserver(roomMemberChangedObserver, register);
     }
 
-    ChatRoomMemberCache.RoomMemberChangedObserver roomMemberChangedObserver = new ChatRoomMemberCache.RoomMemberChangedObserver() {
+    RoomMemberChangedObserver roomMemberChangedObserver = new RoomMemberChangedObserver() {
         @Override
         public void onRoomMemberIn(ChatRoomMember member) {
         }
@@ -217,20 +286,37 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
     };
 
 
-    /**************************** 长按菜单 *********************************/
-    AdapterView.OnItemLongClickListener longClickListener = new AdapterView.OnItemLongClickListener() {
+    /**
+     * ****************************************** 长按菜单 ***************************************
+     */
+
+    private SimpleClickListener<ChatRoomOnlinePeopleAdapter> touchListener = new SimpleClickListener<ChatRoomOnlinePeopleAdapter>() {
         @Override
-        public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-            fetchMemberInfo((ChatRoomMember) parent.getAdapter().getItem(position));
-            return true;
+        public void onItemClick(ChatRoomOnlinePeopleAdapter adapter, View view, int position) {
+
+        }
+
+        @Override
+        public void onItemLongClick(ChatRoomOnlinePeopleAdapter adapter, View view, int position) {
+            fetchMemberInfo(adapter.getItem(position));
+        }
+
+        @Override
+        public void onItemChildClick(ChatRoomOnlinePeopleAdapter adapter, View view, int position) {
+
+        }
+
+        @Override
+        public void onItemChildLongClick(ChatRoomOnlinePeopleAdapter adapter, View view, int position) {
+
         }
     };
 
     // 弹出菜单前，获取成员最新数据
     private void fetchMemberInfo(final ChatRoomMember member) {
-        ChatRoomMemberCache.getInstance().fetchMember(roomId, member.getAccount(), new SimpleCallback<ChatRoomMember>() {
+        NimUIKit.getChatRoomProvider().fetchMember(roomId, member.getAccount(), new SimpleCallback<ChatRoomMember>() {
             @Override
-            public void onResult(boolean success, ChatRoomMember result) {
+            public void onResult(boolean success, ChatRoomMember result, int code) {
                 if (success) {
                     showLongClickMenu(result);
                 } else {
@@ -248,11 +334,13 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
         // 3、用户自己是普通成员
         // 4、用户自己是受限用户
         // 5、用户自己是游客
+        MemberType memberType = NimUIKit.getChatRoomProvider().getChatRoomMember(roomId, DemoCache.getAccount()).getMemberType();
+
         if (currentMember.getMemberType() == MemberType.CREATOR
                 || currentMember.getAccount().equals(DemoCache.getAccount())
-                || ChatRoomMemberCache.getInstance().getChatRoomMember(roomId, DemoCache.getAccount()).getMemberType() == MemberType.NORMAL
-                || ChatRoomMemberCache.getInstance().getChatRoomMember(roomId, DemoCache.getAccount()).getMemberType() == MemberType.LIMITED
-                || ChatRoomMemberCache.getInstance().getChatRoomMember(roomId, DemoCache.getAccount()).getMemberType() == MemberType.GUEST) {
+                || memberType == MemberType.NORMAL
+                || memberType == MemberType.LIMITED
+                || memberType == MemberType.GUEST) {
             return;
         }
         CustomAlertDialog alertDialog = new CustomAlertDialog(getActivity());
@@ -310,7 +398,7 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
     private void addAdminItem(final ChatRoomMember chatRoomMember, CustomAlertDialog alertDialog) {
         // 被操作者比操作者权限大, 则返回
         if (chatRoomMember.getMemberType() == MemberType.ADMIN
-                && ChatRoomMemberCache.getInstance().getChatRoomMember(roomId, DemoCache.getAccount()).getMemberType() != MemberType.CREATOR) {
+                && NimUIKit.getChatRoomProvider().getChatRoomMember(roomId, DemoCache.getAccount()).getMemberType() != MemberType.CREATOR) {
             return;
         }
         final boolean isAdmin = chatRoomMember.getMemberType() == MemberType.ADMIN;
@@ -573,7 +661,7 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
         adapter.notifyDataSetChanged();
     }
 
-    private  static Map<MemberType, Integer> compMap = new HashMap<>();
+    private static Map<MemberType, Integer> compMap = new HashMap<>();
 
     static {
         compMap.put(MemberType.CREATOR, 0);
@@ -581,6 +669,7 @@ public class OnlinePeopleFragment extends TFragment implements TAdapterDelegate 
         compMap.put(MemberType.NORMAL, 2);
         compMap.put(MemberType.LIMITED, 3);
         compMap.put(MemberType.GUEST, 4);
+        compMap.put(MemberType.ANONYMOUS, 5);
     }
 
     private static Comparator<ChatRoomMember> comp = new Comparator<ChatRoomMember>() {

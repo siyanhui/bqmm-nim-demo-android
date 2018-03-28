@@ -7,15 +7,21 @@ import android.view.LayoutInflater;
 import android.view.View;
 
 import com.netease.nim.demo.R;
+import com.netease.nim.uikit.business.session.module.Container;
+import com.netease.nim.uikit.business.session.module.ModuleProxy;
+import com.netease.nim.uikit.business.session.module.list.MessageListPanelEx;
+import com.netease.nim.uikit.business.uinfo.UserInfoHelper;
+import com.netease.nim.uikit.common.activity.ToolBarOptions;
 import com.netease.nim.uikit.common.activity.UI;
-import com.netease.nim.uikit.model.ToolBarOptions;
-import com.netease.nim.uikit.session.module.Container;
-import com.netease.nim.uikit.session.module.ModuleProxy;
-import com.netease.nim.uikit.session.module.list.MessageListPanel;
-import com.netease.nim.uikit.uinfo.UserInfoHelper;
+import com.netease.nim.uikit.api.wrapper.NimToolBarOptions;
 import com.netease.nimlib.sdk.msg.constant.SessionTypeEnum;
 import com.netease.nimlib.sdk.msg.model.IMMessage;
 
+/**
+ * 搜索结果消息列表界面
+ * <p>
+ * Created by huangjun on 2017/1/11.
+ */
 public class DisplayMessageActivity extends UI implements ModuleProxy {
 
     private static String EXTRA_ANCHOR = "anchor";
@@ -37,7 +43,7 @@ public class DisplayMessageActivity extends UI implements ModuleProxy {
     private String account; // 对方帐号
     private IMMessage anchor;
 
-    private MessageListPanel messageListPanel;
+    private MessageListPanelEx messageListPanel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,14 +52,13 @@ public class DisplayMessageActivity extends UI implements ModuleProxy {
         View rootView = LayoutInflater.from(this).inflate(R.layout.message_history_activity, null);
         setContentView(rootView);
 
-        ToolBarOptions options = new ToolBarOptions();
+        ToolBarOptions options = new NimToolBarOptions();
         setToolBar(R.id.toolbar, options);
 
         onParseIntent();
 
         Container container = new Container(this, account, sessionType, this);
-        messageListPanel = new MessageListPanel(container, rootView, anchor, true, false);
-        messageListPanel.scrollToItem(0);
+        messageListPanel = new MessageListPanelEx(container, rootView, anchor, true, false);
     }
 
     @Override
@@ -78,6 +83,11 @@ public class DisplayMessageActivity extends UI implements ModuleProxy {
 
     @Override
     public void onInputPanelExpand() {
+
+    }
+
+    @Override
+    public void onItemFooterClick(IMMessage message) {
 
     }
 

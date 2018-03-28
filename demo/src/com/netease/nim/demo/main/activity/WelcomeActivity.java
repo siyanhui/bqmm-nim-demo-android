@@ -6,19 +6,26 @@ import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.alibaba.fastjson.JSON;
+import com.netease.nim.avchatkit.activity.AVChatActivity;
+import com.netease.nim.avchatkit.constant.AVChatExtras;
 import com.netease.nim.demo.DemoCache;
 import com.netease.nim.demo.R;
-import com.netease.nim.demo.avchat.activity.AVChatActivity;
 import com.netease.nim.demo.common.util.sys.SysInfoUtil;
 import com.netease.nim.demo.config.preference.Preferences;
 import com.netease.nim.demo.login.LoginActivity;
-import com.netease.nim.demo.main.model.Extras;
+import com.netease.nim.demo.mixpush.DemoMixPushMessageHandler;
+import com.netease.nim.uikit.api.NimUIKit;
 import com.netease.nim.uikit.common.activity.UI;
 import com.netease.nim.uikit.common.util.log.LogUtil;
+import com.netease.nimlib.sdk.NIMSDK;
 import com.netease.nimlib.sdk.NimIntent;
+import com.netease.nimlib.sdk.msg.MessageBuilder;
+import com.netease.nimlib.sdk.msg.constant.SessionTypeEnum;
 import com.netease.nimlib.sdk.msg.model.IMMessage;
 
 import java.util.ArrayList;
+import java.util.Map;
 
 /**
  * 欢迎/导航页（app启动Activity）
@@ -36,16 +43,38 @@ public class WelcomeActivity extends UI {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_welcome);
+
+        DemoCache.setMainTaskLaunching(true);
 
         if (savedInstanceState != null) {
             setIntent(new Intent()); // 从堆栈恢复，不再重复解析之前的intent
         }
+
         if (!firstEnter) {
-            onIntent();
+            onIntent(); // APP进程还在，Activity被重新调度起来
         } else {
-            showSplashView();
+            showSplashView(); // APP进程重新起来
+        }
+    }
+
+    private void showSplashView() {
+        // 首次进入，打开欢迎界面
+        getWindow().setBackgroundDrawableResource(R.drawable.splash_bg);
+        customSplash = true;
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+
+        /*
+         * 如果Activity在，不会走到onCreate，而是onNewIntent，这时候需要setIntent
+         * 场景：点击通知栏跳转到此，会收到Intent
+         */
+        setIntent(intent);
+        if (!customSplash) {
+            onIntent();
         }
     }
 
@@ -58,6 +87,13 @@ public class WelcomeActivity extends UI {
             Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
+                    if (!NimUIKit.isInitComplete()) {
+                        LogUtil.i(TAG, "wait for uikit cache!");
+                        new Handler().postDelayed(this, 100);
+                        return;
+                    }
+
+                    customSplash = false;
                     if (canAutoLogin()) {
                         onIntent();
                     } else {
@@ -75,18 +111,6 @@ public class WelcomeActivity extends UI {
     }
 
     @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-
-        /**
-         * 如果Activity在，不会走到onCreate，而是onNewIntent，这时候需要setIntent
-         * 场景：点击通知栏跳转到此，会收到Intent
-         */
-        setIntent(intent);
-        onIntent();
-    }
-
-    @Override
     public void finish() {
         super.finish();
         overridePendingTransition(0, 0);
@@ -95,10 +119,12 @@ public class WelcomeActivity extends UI {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        DemoCache.setMainTaskLaunching(false);
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
         outState.clear();
     }
 
@@ -119,7 +145,9 @@ public class WelcomeActivity extends UI {
                 if (intent.hasExtra(NimIntent.EXTRA_NOTIFY_CONTENT)) {
                     parseNotifyIntent(intent);
                     return;
-                } else if (intent.hasExtra(Extras.EXTRA_JUMP_P2P) || intent.hasExtra(AVChatActivity.INTENT_ACTION_AVCHAT)) {
+                } else if (NIMSDK.getMixPushService().isFCMIntent(intent)) {
+                    parseFCMNotifyIntent(NIMSDK.getMixPushService().parseFCMPayload(intent));
+                } else if (intent.hasExtra(AVChatExtras.EXTRA_FROM_NOTIFICATION) || intent.hasExtra(AVChatActivity.INTENT_ACTION_AVCHAT)) {
                     parseNormalIntent(intent);
                 }
             }
@@ -152,16 +180,21 @@ public class WelcomeActivity extends UI {
         }
     }
 
-    private void parseNormalIntent(Intent intent) {
-        showMainActivity(intent);
+    private void parseFCMNotifyIntent(String payloadString) {
+        Map<String, String> payload = JSON.parseObject(payloadString, Map.class);
+        String sessionId = payload.get(DemoMixPushMessageHandler.PAYLOAD_SESSION_ID);
+        String type = payload.get(DemoMixPushMessageHandler.PAYLOAD_SESSION_TYPE);
+        if (sessionId != null && type != null) {
+            int typeValue = Integer.valueOf(type);
+            IMMessage message = MessageBuilder.createEmptyMessage(sessionId, SessionTypeEnum.typeOfValue(typeValue), 0);
+            showMainActivity(new Intent().putExtra(NimIntent.EXTRA_NOTIFY_CONTENT, message));
+        } else {
+            showMainActivity(null);
+        }
     }
 
-    /**
-     * 首次进入，打开欢迎界面
-     */
-    private void showSplashView() {
-        getWindow().setBackgroundDrawableResource(R.drawable.splash_bg);
-        customSplash = true;
+    private void parseNormalIntent(Intent intent) {
+        showMainActivity(intent);
     }
 
     private void showMainActivity() {
@@ -172,4 +205,5 @@ public class WelcomeActivity extends UI {
         MainActivity.start(WelcomeActivity.this, intent);
         finish();
     }
+
 }

@@ -7,11 +7,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 
 import com.netease.nim.demo.R;
+import com.netease.nim.uikit.business.session.module.Container;
+import com.netease.nim.uikit.business.session.module.ModuleProxy;
+import com.netease.nim.uikit.business.session.module.list.MessageListPanelEx;
+import com.netease.nim.uikit.common.activity.ToolBarOptions;
 import com.netease.nim.uikit.common.activity.UI;
-import com.netease.nim.uikit.model.ToolBarOptions;
-import com.netease.nim.uikit.session.module.Container;
-import com.netease.nim.uikit.session.module.ModuleProxy;
-import com.netease.nim.uikit.session.module.list.MessageListPanel;
+import com.netease.nim.uikit.api.wrapper.NimToolBarOptions;
 import com.netease.nimlib.sdk.msg.constant.SessionTypeEnum;
 import com.netease.nimlib.sdk.msg.model.IMMessage;
 
@@ -29,7 +30,7 @@ public class MessageHistoryActivity extends UI implements ModuleProxy {
     private SessionTypeEnum sessionType;
     private String account; // 对方帐号
 
-    private MessageListPanel messageListPanel;
+    private MessageListPanelEx messageListPanel;
 
     public static void start(Context context, String account, SessionTypeEnum sessionType) {
         Intent intent = new Intent();
@@ -50,14 +51,14 @@ public class MessageHistoryActivity extends UI implements ModuleProxy {
         View rootView = LayoutInflater.from(this).inflate(R.layout.message_history_activity, null);
         setContentView(rootView);
 
-        ToolBarOptions options = new ToolBarOptions();
+        ToolBarOptions options = new NimToolBarOptions();
         options.titleId = R.string.message_history_query;
         setToolBar(R.id.toolbar, options);
 
         onParseIntent();
 
         Container container = new Container(this, account, sessionType, this);
-        messageListPanel = new MessageListPanel(container, rootView, true, true);
+        messageListPanel = new MessageListPanelEx(container, rootView, true, true);
     }
 
     @Override
@@ -90,6 +91,11 @@ public class MessageHistoryActivity extends UI implements ModuleProxy {
 
     @Override
     public void shouldCollapseInputPanel() {
+
+    }
+
+    @Override
+    public void onItemFooterClick(IMMessage message) {
 
     }
 

@@ -2,7 +2,8 @@ package com.netease.nim.demo;
 
 import android.content.Context;
 
-import com.netease.nim.uikit.NimUIKit;
+import com.netease.nim.avchatkit.AVChatKit;
+import com.netease.nim.uikit.api.NimUIKit;
 import com.netease.nimlib.sdk.StatusBarNotificationConfig;
 
 /**
@@ -24,9 +25,12 @@ public class DemoCache {
         return account;
     }
 
+    private static boolean mainTaskLaunching;
+
     public static void setAccount(String account) {
         DemoCache.account = account;
         NimUIKit.setAccount(account);
+        AVChatKit.setAccount(account);
     }
 
     public static void setNotificationConfig(StatusBarNotificationConfig notificationConfig) {
@@ -43,5 +47,17 @@ public class DemoCache {
 
     public static void setContext(Context context) {
         DemoCache.context = context.getApplicationContext();
+
+        AVChatKit.setContext(context);
+    }
+
+    public static void setMainTaskLaunching(boolean mainTaskLaunching) {
+        DemoCache.mainTaskLaunching = mainTaskLaunching;
+
+        AVChatKit.setMainTaskLaunching(mainTaskLaunching);
+    }
+
+    public static boolean isMainTaskLaunching() {
+        return mainTaskLaunching;
     }
 }

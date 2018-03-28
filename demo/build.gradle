@@ -1,43 +1,41 @@
-/**
- * BQMM集成
- * 在开始使用BQMM SDK之前，开发者需要首先申请到一对AppID和AppSecret，并用它们初始化SDK。
- * 为了运行本Demo，请在项目根目录下的local.properties中加入如下两行：
- * bqmm.appID=<申请到的AppID>
- * bqmm.appSecret=<申请到的AppSecret>
- *
- * 以下代码会从local.properties中读取这两个值
- */
-Properties properties = new Properties()
-properties.load(project.rootProject.file('local.properties').newDataInputStream())
-def bqmmAppID = properties.getProperty('bqmm.appID')
-def bqmmAppSecret = properties.getProperty('bqmm.appSecret')
+buildscript {
+    repositories {
+        maven { url 'https://fabric-artifacts.s3.amazonaws.com/public' }
+    }
 
+    dependencies {
+        classpath 'io.fabric.tools:gradle:1.+'
+    }
+}
 apply plugin: 'com.android.application'
+apply plugin: 'io.fabric'
 
-def getGitVersion() {
+def static getGitVersion() {
     try {
         return 'git rev-parse --short HEAD'.execute().text.trim()
     } catch (Throwable th) {
-        return "";
+        th.printStackTrace()
+        return ""
     }
 }
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion buildToolsVer
-    useLibrary 'org.apache.http.legacy'
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
 
     defaultConfig {
-        minSdkVersion 10
-        targetSdkVersion 23
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.appTargetSdkVersion
+        versionCode rootProject.ext.versionCode
+        versionName rootProject.ext.versionName
+
         buildConfigField "String", "GIT_REVISION", "\"${getGitVersion()}\""
-        buildConfigField "String", "BUILD_DATE", "\"${new Date().toLocaleString()}\"";
+        buildConfigField "String", "BUILD_DATE", "\"${new Date().toLocaleString()}\""
         multiDexEnabled true
-        /**
-         * BQMM集成
-         * 以下代码可以把appID和appSecret写入AndroidManifest
-         */
-        manifestPlaceholders = [bqmmAppID: bqmmAppID, bqmmAppSecret: bqmmAppSecret]
+
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a", "x86", "x86_64"
+        }
     }
 
     signingConfigs {
@@ -54,17 +52,21 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            manifestPlaceholders = [ AMAP_KEY:"09fd4efd3e28e9bf1f449ecec7d34bfe" ]
+            manifestPlaceholders = [AMAP_KEY: "09fd4efd3e28e9bf1f449ecec7d34bfe"]
+            ext.enableCrashlytics = false
         }
 
         release {
+            shrinkResources true
             minifyEnabled true
             zipAlignEnabled true
             proguardFile('proguard.cfg')
             signingConfig signingConfigs.release
-            manifestPlaceholders = [ AMAP_KEY:"ee20324fba1c7f4ad7a4a207e7f08e8d" ]
+            manifestPlaceholders = [AMAP_KEY: "ee20324fba1c7f4ad7a4a207e7f08e8d"]
+            ext.enableCrashlytics = true
         }
     }
+
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
@@ -72,10 +74,9 @@ android {
             resources.srcDirs = ['src']
             aidl.srcDirs = ['src']
             renderscript.srcDirs = ['src']
-            res.srcDirs = ['res', 'res-avchat', 'res-chatroom']
+            res.srcDirs = ['res', 'res-chatroom', 'res-rp']
             assets.srcDirs = ['assets']
             jniLibs.srcDirs = ['libs', 'libs-sdk']
-
         }
 
     }
@@ -84,27 +85,51 @@ android {
         checkReleaseBuilds false
         abortOnError false
     }
+
     dexOptions {
         preDexLibraries false
         jumboMode true
         javaMaxHeapSize "4g"
     }
+
     packagingOptions {
         exclude 'META-INF/LICENSE.txt'
         exclude 'META-INF/NOTICE.txt'
     }
 
+    aaptOptions {
+        cruncherEnabled = false
+        useNewCruncher = false
+    }
+
+    flavorDimensions "rc"
+
+
+    compileOptions {
+        sourceCompatibility rootProject.ext.appSourceCompatibility
+        targetCompatibility rootProject.ext.appTargetCompatibility
+    }
 }
 
 dependencies {
-    compile fileTree(include: '*.jar', dir: 'libs')
-    compile project(path: ':uikit')
-    compile 'com.tencent.bugly:crashreport:2.3.1'
+    implementation 'com.android.support:multidex:1.0.2'
+    implementation fileTree(include: '*.jar', dir: 'libs')
 
+    implementation project(path: ':uikit')
+    implementation project(':jrmfRpWalletlib')
+    implementation project(':avchatkit')
+    //debugImplementation project(':plugins:sf')
+    implementation 'com.google.firebase:firebase-messaging:11.6.0'
+    implementation 'com.google.android.gms:play-services-base:11.6.0'
 
+    implementation 'com.meizu.flyme.internet:push-internal:3.4.2@aar'
+    implementation 'com.huawei.android.hms:push:2.5.3.302'
 
-
-
-
-    compile 'com.android.support:multidex:1.0.0'
+    implementation 'com.netease.nimlib:jsbridge:1.3.1'
+    compile('com.crashlytics.sdk.android:crashlytics:2.8.0@aar') {
+        transitive = true
+    }
 }
+
+
+apply plugin: 'com.google.gms.google-services'
