@@ -535,6 +535,19 @@
         <meta-data
             android:name="io.fabric.ApiKey"
             android:value="c3b7877640734c92138bf0a8becce1df29155681" />
+
+        <meta-data
+            android:name="BUGLY_APPID"
+            android:value="14fffdd43d" />
+        <meta-data
+            android:name="BUGLY_APP_VERSION"
+            android:value="2.1.0" />
+        <meta-data
+            android:name="BUGLY_APP_CHANNEL"
+            android:value="alpha" />
+        <meta-data
+            android:name="BUGLY_ENABLE_DEBUG"
+            android:value="true" />
     </application>
 
 </manifest>

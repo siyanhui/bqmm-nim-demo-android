@@ -113,11 +113,17 @@ android {
 
 dependencies {
     implementation 'com.android.support:multidex:1.0.2'
-    implementation fileTree(include: '*.jar', dir: 'libs')
+    implementation fileTree(include: '*.jar', dir: 'libs')
+
 
     implementation project(path: ':uikit')
     implementation project(':jrmfRpWalletlib')
-    implementation project(':avchatkit')
+    implementation project(':avchatkit')
+
+
+
+
+
     //debugImplementation project(':plugins:sf')
     implementation 'com.google.firebase:firebase-messaging:11.6.0'
     implementation 'com.google.android.gms:play-services-base:11.6.0'
@@ -129,6 +135,8 @@ dependencies {
     compile('com.crashlytics.sdk.android:crashlytics:2.8.0@aar') {
         transitive = true
     }
+
+    compile 'com.tencent.bugly:crashreport:2.6.6.1'
 }
 
 

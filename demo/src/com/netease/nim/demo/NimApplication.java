@@ -35,6 +35,7 @@ import com.netease.nimlib.sdk.auth.LoginInfo;
 import com.netease.nimlib.sdk.mixpush.NIMPushClient;
 import com.netease.nimlib.sdk.uinfo.model.UserInfo;
 import com.netease.nimlib.sdk.util.NIMUtil;
+import com.tencent.bugly.crashreport.CrashReport;
 
 import io.fabric.sdk.android.Fabric;
 
@@ -85,6 +86,7 @@ public class NimApplication extends Application {
 
         // Initialize Fabric with the debug-disabled crashlytics.
         Fabric.with(this, crashlyticsKit);
+        CrashReport.initCrashReport(getApplicationContext());
     }
 
     private LoginInfo getLoginInfo() {
