@@ -92,4 +92,9 @@
     <dimen name="robot_message_text_max_width">200dp</dimen>
     <dimen name="robot_message_image_width">200dp</dimen>
     <dimen name="robot_message_link_width">200dp</dimen>
+
+    <!--BQMM集成 增加几个dimen-->
+    <dimen name="bqmm_popup_view_offset">40dip</dimen>
+    <dimen name="bqmm_sticker_size">100dip</dimen>
+    <dimen name="bqmm_emoji_size">20dip</dimen>
 </resources>

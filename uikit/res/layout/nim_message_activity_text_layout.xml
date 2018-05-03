@@ -54,7 +54,8 @@
             android:visibility="gone" />
     </FrameLayout>
 
-    <EditText
+    <!--BQMM集成 更改类型为BQMMEditView-->
+    <com.melink.bqmmsdk.widget.BQMMEditView
         android:id="@+id/editTextMessage"
         android:textCursorDrawable="@null"
         android:textColor="@color/black"
@@ -97,7 +98,8 @@
             android:contentDescription="@string/empty"
             android:scaleType="center" />
 
-        <TextView
+        <!--BQMM集成 更改类型为BQMMSendButton-->
+        <com.melink.bqmmsdk.widget.BQMMSendButton
             android:id="@+id/buttonSendMessage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

@@ -125,4 +125,15 @@
     <style name="edit_text_style">
         <item name="android:textCursorDrawable">@color/black</item>
     </style>
+
+    <!--BQMM集成 将原先在xml中指定的TextView样式移到一个style中-->
+    <style name="bqmm_message_text_style">
+        <item name="android:autoLink">phone|email|web</item>
+        <item name="android:gravity">center_vertical|left</item>
+        <item name="android:includeFontPadding">false</item>
+        <item name="android:lineSpacingExtra">3dip</item>
+        <item name="android:textColor">@color/color_black_b3000000</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:maxWidth">@dimen/max_text_bubble_width</item>
+    </style>
 </resources>

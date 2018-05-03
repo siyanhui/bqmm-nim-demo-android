@@ -58,7 +58,10 @@ public class MsgViewHolderRobot extends MsgViewHolderText implements RobotConten
                 }
             }
         });
-        bodyTextView = (TextView) containerIn.findViewById(R.id.nim_message_item_text_body);
+        /**
+         * BQMM集成 改成直接调用父类的这个函数
+         */
+        super.inflateContentView();
     }
 
     @Override

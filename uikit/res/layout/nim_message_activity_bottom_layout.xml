@@ -8,9 +8,10 @@
 
     <include layout="@layout/nim_message_activity_text_layout"/>
 
-    <com.netease.nim.uikit.business.session.emoji.EmoticonPickerView
+    <!--BQMM集成 替换键盘类型，并指定高度-->
+    <com.melink.bqmmsdk.ui.keyboard.BQMMKeyboard
         android:id="@+id/emoticon_picker_view"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="250dp"
         android:visibility="gone"/>
 </LinearLayout>

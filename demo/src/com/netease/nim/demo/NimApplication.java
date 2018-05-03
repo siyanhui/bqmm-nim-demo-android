@@ -2,11 +2,14 @@ package com.netease.nim.demo;
 
 import android.app.Application;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.support.multidex.MultiDex;
 import android.text.TextUtils;
 
 import com.crashlytics.android.Crashlytics;
 import com.crashlytics.android.core.CrashlyticsCore;
+import com.melink.bqmmsdk.sdk.BQMM;
 import com.netease.nim.avchatkit.AVChatKit;
 import com.netease.nim.avchatkit.config.AVChatOptions;
 import com.netease.nim.avchatkit.model.ITeamDataProvider;
@@ -87,6 +90,17 @@ public class NimApplication extends Application {
         // Initialize Fabric with the debug-disabled crashlytics.
         Fabric.with(this, crashlyticsKit);
         CrashReport.initCrashReport(getApplicationContext());
+
+        /*
+         * BQMM集成
+         * 首先从AndroidManifest.xml中取得appId和appSecret，然后对BQMM SDK进行初始化
+         */
+        try {
+            Bundle bundle = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA).metaData;
+            BQMM.getInstance().initConfig(this, bundle.getString("bqmm_app_id"), bundle.getString("bqmm_app_secret"));
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private LoginInfo getLoginInfo() {

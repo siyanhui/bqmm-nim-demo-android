@@ -25,16 +25,27 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.alibaba.fastjson.JSONObject;
+import com.melink.bqmmsdk.bean.BQMMGif;
+import com.melink.bqmmsdk.bean.Emoji;
+import com.melink.bqmmsdk.sdk.BQMM;
+import com.melink.bqmmsdk.sdk.BQMMMessageHelper;
+import com.melink.bqmmsdk.sdk.IBqmmSendMessageListener;
+import com.melink.bqmmsdk.ui.keyboard.BQMMKeyboard;
+import com.melink.bqmmsdk.ui.keyboard.IGifButtonClickListener;
+import com.melink.bqmmsdk.widget.BQMMEditView;
+import com.melink.bqmmsdk.widget.BQMMSendButton;
 import com.netease.nim.uikit.R;
 import com.netease.nim.uikit.api.NimUIKit;
 import com.netease.nim.uikit.api.UIKitOptions;
 import com.netease.nim.uikit.api.model.session.SessionCustomization;
 import com.netease.nim.uikit.business.ait.AitTextChangeListener;
 import com.netease.nim.uikit.business.session.actions.BaseAction;
-import com.netease.nim.uikit.business.session.emoji.EmoticonPickerView;
 import com.netease.nim.uikit.business.session.emoji.IEmoticonSelectedListener;
 import com.netease.nim.uikit.business.session.emoji.MoonUtil;
 import com.netease.nim.uikit.business.session.module.Container;
+import com.netease.nim.uikit.common.BQMMConstants;
+import com.netease.nim.uikit.common.bqmmgif.BQMMGifManager;
+import com.netease.nim.uikit.common.bqmmgif.IBqmmSendGifListener;
 import com.netease.nim.uikit.common.ui.dialog.EasyAlertDialogHelper;
 import com.netease.nim.uikit.common.util.log.LogUtil;
 import com.netease.nim.uikit.common.util.string.StringUtil;
@@ -51,7 +62,10 @@ import com.netease.nimlib.sdk.msg.model.CustomNotification;
 import com.netease.nimlib.sdk.msg.model.CustomNotificationConfig;
 import com.netease.nimlib.sdk.msg.model.IMMessage;
 
+import org.json.JSONException;
+
 import java.io.File;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -70,7 +84,10 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
 
     protected View actionPanelBottomLayout; // 更多布局
     protected LinearLayout messageActivityBottomLayout;
-    protected EditText messageEditText;// 文本消息编辑框
+    /**
+     * BQMM集成 更改类型为BQMMEditView
+     */
+    protected BQMMEditView messageEditText;// 文本消息编辑框
     protected Button audioRecordBtn; // 录音按钮
     protected View audioAnimLayout; // 录音动画布局
     protected FrameLayout textAudioSwitchLayout; // 切换文本，语音按钮布局
@@ -83,8 +100,11 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
 
     private SessionCustomization customization;
 
-    // 表情
-    protected EmoticonPickerView emoticonPickerView;  // 贴图表情控件
+    /*
+     * BQMM集成
+     * 将表情键盘的类型替换为BQMMKeyboard
+     */
+    protected BQMMKeyboard emoticonPickerView;  // 贴图表情控件
 
     // 语音
     protected AudioRecorder audioMessageHelper;
@@ -165,9 +185,12 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
 
     public void setCustomization(SessionCustomization customization) {
         this.customization = customization;
-        if (customization != null) {
-            emoticonPickerView.setWithSticker(customization.withSticker);
-        }
+        /*
+         * BQMM集成 这里的代码不需要了
+         */
+        //if (customization != null) {
+        //    emoticonPickerView.setWithSticker(customization.withSticker);
+        //}
     }
 
     public void reload(Container container, SessionCustomization customization) {
@@ -184,7 +207,7 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         moreFuntionButtonInInputBar = view.findViewById(R.id.buttonMoreFuntionInText);
         emojiButtonInInputBar = view.findViewById(R.id.emoji_button);
         sendMessageButtonInInputBar = view.findViewById(R.id.buttonSendMessage);
-        messageEditText = (EditText) view.findViewById(R.id.editTextMessage);
+        messageEditText = view.findViewById(R.id.editTextMessage);
 
         // 语音
         audioRecordBtn = (Button) view.findViewById(R.id.audioRecord);
@@ -194,7 +217,83 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         timerTipContainer = (LinearLayout) view.findViewById(R.id.timer_tip_container);
 
         // 表情
-        emoticonPickerView = (EmoticonPickerView) view.findViewById(R.id.emoticon_picker_view);
+        emoticonPickerView = view.findViewById(R.id.emoticon_picker_view);
+
+        /*
+         * BQMM集成 向BQMM传入发送表情相关的几个UI控件，并设置发送表情的Listener
+         */
+        final BQMM bqmm = BQMM.getInstance();
+        bqmm.setEditView(messageEditText);
+        bqmm.setSendButton((BQMMSendButton) sendMessageButtonInInputBar);
+
+        final BQMMGifManager bqmmGifManager = BQMMGifManager.getInstance();
+        //表情键盘上有一个GIF按钮，在该按钮被点击后需要调用BQMMGifManager打开搜索弹窗
+        bqmm.setKeyboard(emoticonPickerView, new IGifButtonClickListener() {
+            @Override
+            public void didClickGifTab() {
+                emoticonPickerView.hideKeyboard();
+                showInputMethod(messageEditText);
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        bqmmGifManager.showTrending();
+                    }
+                }, 500);
+            }
+        });
+        //发送GIF表情的Listener
+        bqmmGifManager.setBQMMSendGifListener(new IBqmmSendGifListener() {
+            @Override
+            public void onSendBQMMGif(BQMMGif bqmmGif) {
+                org.json.JSONObject gifJsonObject = new org.json.JSONObject();
+                try {
+                    gifJsonObject.put("data_id", bqmmGif.getSticker_id());
+                    gifJsonObject.put("h", bqmmGif.getSticker_height());
+                    gifJsonObject.put("w", bqmmGif.getSticker_width());
+                    gifJsonObject.put("sticker_url", bqmmGif.getSticker_url());
+                    gifJsonObject.put("is_gif", bqmmGif.getIs_gif());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+                HashMap<String, Object> params = new HashMap<>();
+                params.put(BQMMConstants.BQMM_MSG_TYPE, BQMMConstants.BQMM_MSG_TYPE_GIF);
+                params.put(BQMMConstants.BQMM_MSG_DATA, gifJsonObject);
+                IMMessage textMessage = createTextMessage("[" + bqmmGif.getText() + "]");
+                textMessage.setRemoteExtension(params);
+                container.proxy.sendMessage(textMessage);
+            }
+        });
+        bqmmGifManager.addEditViewListeners();
+        //发送普通表情和文字的Listener
+        bqmm.setBqmmSendMsgListener(new IBqmmSendMessageListener() {
+            @Override
+            public void onSendMixedMessage(List<Object> emojis, boolean isMixedMessage) {
+                final IMMessage textMessage = createTextMessage(BQMMMessageHelper.getMixedMessageString(emojis));
+                if (isMixedMessage) {
+                    final HashMap<String, Object> params = new HashMap<>();
+                    params.put(BQMMConstants.BQMM_MSG_TYPE, BQMMConstants.BQMM_MSG_TYPE_EMOJI);
+                    params.put(BQMMConstants.BQMM_MSG_DATA, BQMMMessageHelper.getMixedMessageData(emojis));
+                    textMessage.setRemoteExtension(params);
+                }
+                if (container.proxy.sendMessage(textMessage)) {
+                    restoreText(true);
+                }
+            }
+
+            @Override
+            public void onSendFace(Emoji sticker) {
+                final HashMap<String, Object> params = new HashMap<>();
+                params.put(BQMMConstants.BQMM_MSG_TYPE, BQMMConstants.BQMM_MSG_TYPE_STICKER);
+                params.put(BQMMConstants.BQMM_MSG_DATA, BQMMMessageHelper.getFaceMessageData(sticker));
+                final IMMessage textMessage = createTextMessage("[" + sticker.getEmoText() + "]");
+                textMessage.setRemoteExtension(params);
+                if (container.proxy.sendMessage(textMessage)) {
+                    restoreText(true);
+                }
+            }
+        });
+        //完成加载
+        bqmm.load();
 
         // 显示录音按钮
         switchToTextButtonInInputBar.setVisibility(View.GONE);
@@ -213,7 +312,6 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         switchToTextButtonInInputBar.setOnClickListener(clickListener);
         switchToAudioButtonInInputBar.setOnClickListener(clickListener);
         emojiButtonInInputBar.setOnClickListener(clickListener);
-        sendMessageButtonInInputBar.setOnClickListener(clickListener);
         moreFuntionButtonInInputBar.setOnClickListener(clickListener);
     }
 
@@ -439,7 +537,6 @@ public class InputPanel implements IEmoticonSelectedListener, IAudioRecordCallba
         messageEditText.requestFocus();
         uiHandler.postDelayed(showEmojiRunnable, 200);
         emoticonPickerView.setVisibility(View.VISIBLE);
-        emoticonPickerView.show(this);
         container.proxy.onInputPanelExpand();
     }
 
